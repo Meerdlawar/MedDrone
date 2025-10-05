@@ -1,0 +1,4 @@
+package uk.ac.ed.acp.cw2.model;
+
+public class Point {
+}
