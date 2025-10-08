@@ -1,18 +1,14 @@
 package uk.ac.ed.acp.cw2.controller;
 
-import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
 import uk.ac.ed.acp.cw2.model.LngLat;
-import java.util.Map;
-import java.lang.Math;
 import java.net.URL;
 import uk.ac.ed.acp.cw2.model.Euclidian_distance;
 import uk.ac.ed.acp.cw2.model.dto;
-import java.time.Instant;
 import org.json.*;
 
 /**
@@ -58,17 +54,17 @@ public class ServiceController {
     public record NextPositionRequest(LngLat start, double angleDeg) {}
     public record NextPositionResponse(LngLat position) {}
     @PostMapping("/nextPosition")
-    public NextPositionResponse next(@RequestBody NextPositionRequest req) {
-        var dir = Euclidian_distance.Direction16.nearestTo(req.angleDeg());
-        return new NextPositionResponse(dir.stepFrom(req.start(), Euclidian_distance.STEP_SIZE));
+    public NextPositionResponse next(@Valid @RequestBody dto.StepByAngleRequest req) {
+        var dir = Euclidian_distance.Direction16.angle_direction(req.angle()); // see section 2
+        var pos = dir.stepFrom(req.start());                 // uses fixed STEP_SIZE internally
+        return new NextPositionResponse(pos);
     }
+
 
     @PostMapping("/isInRegion")
     public boolean isInRegion() {
         return false;
     }
-
-
 }
 
 

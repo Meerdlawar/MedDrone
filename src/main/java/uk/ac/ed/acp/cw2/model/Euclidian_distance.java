@@ -1,10 +1,10 @@
 package uk.ac.ed.acp.cw2.model;
 
-import org.springframework.scheduling.annotation.Scheduled;
+
 import org.springframework.web.bind.annotation.*;
-import uk.ac.ed.acp.cw2.model.LngLat;
-import java.util.Map;
 import java.lang.Math;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 public class Euclidian_distance {
 
@@ -33,16 +33,21 @@ public class Euclidian_distance {
         public final double bearingDeg;
         Direction16(double bearingDeg) { this.bearingDeg = bearingDeg; }
 
-        public static Direction16 nearestTo(double bearingDeg) {
-            double b = ((bearingDeg % 360) + 360) % 360; // normalize [0,360)
-            int idx = (int)Math.round(b / 22.5) % 16;
+        public static Direction16 angle_direction(double bearingDeg) {
+            // normalize [0,360) so that negative values or values >= 360 work
+            if (bearingDeg < 0 || bearingDeg > 360 || bearingDeg % 22.5 != 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Angle must be one of {0,22.5,45,...,337.5}");
+            }
+            double normVal = (bearingDeg % 360); // incase 360 was inputted it would map to E(0)
+            int idx = (int) (normVal / 22.5) % 16;
             return values()[idx];
         }
 
-        public LngLat stepFrom(LngLat start, double step) {
+        public LngLat stepFrom(LngLat start) {
             double rad = Math.toRadians(bearingDeg);
-            double dx = Math.cos(rad) * step;
-            double dy = Math.sin(rad) * step;
+            double dx = Math.cos(rad) * STEP_SIZE;
+            double dy = Math.sin(rad) * STEP_SIZE;
             return new LngLat(start.getLng() + dx, start.getLat() + dy);
         }
     }
