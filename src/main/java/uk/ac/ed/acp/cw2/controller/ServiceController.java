@@ -10,7 +10,10 @@ import uk.ac.ed.acp.cw2.model.LngLat;
 import java.util.Map;
 import java.lang.Math;
 import java.net.URL;
+import uk.ac.ed.acp.cw2.model.Euclidian_distance;
+import uk.ac.ed.acp.cw2.model.dto;
 import java.time.Instant;
+import org.json.*;
 
 /**
  * Controller class that handles various HTTP endpoints for the application.
@@ -42,60 +45,22 @@ public class ServiceController {
 
 
     @PostMapping("/distanceTo")
-    public double distanceTo(@RequestBody Map<String, LngLat> positions) {
-        LngLat position1 = positions.get("position1");
-        LngLat position2 = positions.get("position2");
-
-        // The LngLat constructor already handles validation, so if creation fails,
-        // Spring will automatically return a 400 Bad Request error.
-
-        double lng1 = position1.getLng();
-        double lat1 = position1.getLat();
-        double lng2 = position2.getLng();
-        double lat2 = position2.getLat();
-
-        double deltaLng = lng1 - lng2;
-        double deltaLat = lat1 - lat2;
-
-        return Math.sqrt(deltaLng * deltaLng + deltaLat * deltaLat);
+    public dto.DistanceResponse distance(@RequestBody dto.PairRequest req) {
+        return new dto.DistanceResponse(Euclidian_distance.distance(req.position1(), req.position2()));
     }
 
     @PostMapping("/isCloseTo")
-    public boolean isCloseTo(@RequestBody Map<String, LngLat> positions) {
-        LngLat position1 = positions.get("position1");
-        LngLat position2 = positions.get("position2");
-
-        // The LngLat constructor already handles validation, so if creation fails,
-        // Spring will automatically return a 400 Bad Request error.
-
-        double lng1 = position1.getLng();
-        double lat1 = position1.getLat();
-        double lng2 = position2.getLng();
-        double lat2 = position2.getLat();
-
-        double deltaLng = lng1 - lng2;
-        double deltaLat = lat1 - lat2;
-
-        return Math.sqrt(deltaLng * deltaLng + deltaLat * deltaLat) < 0.00015;
+    public dto.IsCloseResponse isCloseTo(@RequestBody dto.PairRequest req) {
+        return new dto.IsCloseResponse(Euclidian_distance.isClose(req.position1(), req.position2()));
     }
 
 
-    public record NextPositionRequest(LngLat start, double angle) { }
+    public record NextPositionRequest(LngLat start, double angleDeg) {}
+    public record NextPositionResponse(LngLat position) {}
     @PostMapping("/nextPosition")
-    public LngLat nextPosition(@RequestBody NextPositionRequest req) {
-        LngLat start = req.start();
-        double angle = req.angle();
-
-        if (angle % 22.5 != 0) {
-            throw new IllegalArgumentException("Angle must be a multiple of 22.5");
-        }
-
-        double step = 0.00015;
-        double deltaLng = Math.cos(Math.toRadians(angle)) * step;
-        double deltaLat = Math.sin(Math.toRadians(angle)) * step;
-
-
-        return new LngLat(start.getLng() + deltaLng, start.getLat() + deltaLat);
+    public NextPositionResponse next(@RequestBody NextPositionRequest req) {
+        var dir = Euclidian_distance.Direction16.nearestTo(req.angleDeg());
+        return new NextPositionResponse(dir.stepFrom(req.start(), Euclidian_distance.STEP_SIZE));
     }
 
     @PostMapping("/isInRegion")
