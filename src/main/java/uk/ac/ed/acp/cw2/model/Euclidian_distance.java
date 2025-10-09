@@ -23,7 +23,6 @@ public class Euclidian_distance {
     }
 
 
-    // package uk.ac.ed.acp.cw2.geo;
     public enum Direction16 {
         E(0), ENE(22.5), NE(45), NNE(67.5),
         N(90), NNW(112.5), NW(135), WNW(157.5),
@@ -34,7 +33,7 @@ public class Euclidian_distance {
         Direction16(double bearingDeg) { this.bearingDeg = bearingDeg; }
 
         public static Direction16 angle_direction(double bearingDeg) {
-            // normalize [0,360) so that negative values or values >= 360 work
+            // filter invalid data
             if (bearingDeg < 0 || bearingDeg > 360 || bearingDeg % 22.5 != 0) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Angle must be one of {0,22.5,45,...,337.5}");

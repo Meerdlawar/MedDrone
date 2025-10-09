@@ -3,13 +3,13 @@ package uk.ac.ed.acp.cw2.model;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-public class dto {
+public class deserialization {
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record PairRequest(LngLat position1, LngLat position2) {}
-    public record DistanceResponse(double distance) {}
-    public record IsCloseResponse(boolean close) {}
 
-
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record StepByAngleRequest(
             @NotNull LngLat start,
             @NotNull @JsonProperty("angle") Double angle   // matches your Postman payload
