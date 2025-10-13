@@ -15,7 +15,7 @@ FROM openjdk:21
 # Set the working directory in the container
 WORKDIR /app
 # Copy the built JAR file from the previous stage to the container
-COPY --from=build /app/target/IlpTutorial1*.jar app.jar
+COPY --from=build /app/target/IlP_CW1*.jar app.jar
 EXPOSE 8080
 
 # Showing how ENV variables can be set

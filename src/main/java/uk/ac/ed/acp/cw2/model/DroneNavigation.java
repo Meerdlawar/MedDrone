@@ -1,12 +1,11 @@
 package uk.ac.ed.acp.cw2.model;
 
 
-import org.springframework.web.bind.annotation.*;
 import java.lang.Math;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
-public class Euclidian_distance {
+public class DroneNavigation {
 
     /** Step length and “hit” radius from the spec */
     public static final double STEP_SIZE = 0.00015; // Length of one move

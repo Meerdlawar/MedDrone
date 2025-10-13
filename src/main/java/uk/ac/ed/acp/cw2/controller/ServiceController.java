@@ -7,10 +7,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import uk.ac.ed.acp.cw2.model.LngLat;
+import uk.ac.ed.acp.cw2.model.*;
 import java.net.URL;
-import uk.ac.ed.acp.cw2.model.Euclidian_distance;
-import uk.ac.ed.acp.cw2.model.deserialization;
 
 /**
  * Controller class that handles various HTTP endpoints for the application.
@@ -18,27 +16,6 @@ import uk.ac.ed.acp.cw2.model.deserialization;
  * and managing key-value pairs through POST requests.
  */
 
-
-// test data:
-
-//{
-//        "position1": {
-//        "lng": -3.192473,
-//        "lat": 55.946233
-//        },
-//        "position2": {
-//        "lng": -3.192473,
-//        "lat": 55.946233
-//        }
-//        }
-
-//    {
-//            "start": {
-//            "lng": -3.192473,
-//            "lat": 55.946233
-//            },
-//            "angle": 45
-//    }
 
 
 @RestController()
@@ -55,7 +32,7 @@ public class ServiceController {
     public String index() {
         return "<html><body>" +
                 "<h1>Welcome from ILP</h1>" +
-                "<h4>ILP-REST-Service-URL:</h4> <a href=\"" + serviceUrl + "\" target=\"_blank\"> " + serviceUrl+ " </a>" +
+                "<h4>ILP-REST-Service-URL:</h4> <a href=\"" + serviceUrl + "\" target=\"_blank\"> " + serviceUrl + " </a>" +
                 "</body></html>";
     }
 
@@ -66,37 +43,51 @@ public class ServiceController {
 
 
     @PostMapping("/distanceTo")
-    public double distance(@RequestBody deserialization.PairRequest req) {
+    public double distance(@RequestBody Dto.PairRequest req) {
         if (req.position1() == null || req.position2() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "position1 and position2 are required");
         }
-        return Euclidian_distance.distance(req.position1(), req.position2());
+        return DroneNavigation.distance(req.position1(), req.position2());
     }
 
     @PostMapping("/isCloseTo")
-    public boolean isCloseTo(@RequestBody deserialization.PairRequest req) {
+    public boolean isCloseTo(@RequestBody Dto.PairRequest req) {
         if (req.position1() == null || req.position2() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "position1 and position2 are required");
         }
-        return Euclidian_distance.isClose(req.position1(), req.position2());
+        return DroneNavigation.isClose(req.position1(), req.position2());
     }
 
 
     @PostMapping("/nextPosition")
-    public LngLat next(@Valid @RequestBody deserialization.StepByAngleRequest req) {
+    public LngLat next(@Valid @RequestBody Dto.StepByAngleRequest req) {
         if (req.start() == null || req.angle() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "start and angle are required");
         }
-        var dir = Euclidian_distance.Direction16.angle_direction(req.angle());
+        var dir = DroneNavigation.Direction16.angle_direction(req.angle());
         return dir.stepFrom(req.start());  // return LngLat directly
     }
 
 
-    @PostMapping("/isInRegion")
-    public boolean isInRegion() {
-        return false;
+    @PostMapping("isInRegion")
+    public boolean isInRegion(@Valid @RequestBody Dto.LocationPayload req) {
+        // Validate and build the point
+        Dto.positionRegion pos = req.position();
+        LngLat point = new LngLat(pos.lng(), pos.lat());
+
+        // Build vertices; each LngLat constructor enforces sane ranges / null checks
+        java.util.List<LngLat> verts = new java.util.ArrayList<>();
+        for (Dto.positionRegion v : req.region().vertices()) {
+            if (v == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Null vertex in region");
+            }
+            verts.add(new LngLat(v.lng(), v.lat()));
+        }
+
+        return PointInRegion.isInRegion(point, verts);
     }
 }
+
 
 
 
