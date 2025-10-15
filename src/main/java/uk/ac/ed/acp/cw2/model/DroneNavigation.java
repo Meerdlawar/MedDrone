@@ -4,6 +4,7 @@ package uk.ac.ed.acp.cw2.model;
 import java.lang.Math;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import uk.ac.ed.acp.cw2.data.LngLat;
 
 public class DroneNavigation {
 

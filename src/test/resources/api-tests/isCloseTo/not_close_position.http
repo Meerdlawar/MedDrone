@@ -1,0 +1,9 @@
+###
+
+# curl -X POST -H "Content-Type: application/json" -d @/src/test/json_test_data/isCloseTo/not_not_close_position.json https://localhost:8080/api/v1/distanceTo
+POST http://localhost:8080/api/v1/isCloseTo
+Content-Type: application/json
+
+< ../../json_test_data/isCloseTo/not_close_position.json
+
+###

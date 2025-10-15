@@ -1,4 +1,4 @@
-package uk.ac.ed.acp.cw2.model;
+package uk.ac.ed.acp.cw2.data;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.springframework.http.HttpStatus;

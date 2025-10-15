@@ -2,6 +2,7 @@ package uk.ac.ed.acp.cw2.model;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import uk.ac.ed.acp.cw2.data.LngLat;
 
 import java.awt.geom.Path2D;
 import java.util.List;
@@ -65,24 +66,36 @@ public final class PointInRegion {
                 && Objects.equals(a.getLat(), b.getLat());
     }
 
+
     /** True if point P is on segment AB within EPS. */
     private static boolean onSegment(double px, double py,
                                      double ax, double ay,
                                      double bx, double by) {
-
+        // First check if point is within the bounding box of the segment
         double minx = Math.min(ax, bx) - EPS, maxx = Math.max(ax, bx) + EPS;
         double miny = Math.min(ay, by) - EPS, maxy = Math.max(ay, by) + EPS;
-        if (px < minx || px > maxx || py < miny || py > maxy) return false;
+        if (px < minx || px > maxx || py < miny || py > maxy) {
+            return false;
+        }
 
-        // Line in ax + by + c = 0 form via normal to AB
-        double nx = ay - by, ny = bx - ax;
-        double norm = Math.hypot(nx, ny);
-        if (norm <= EPS) {
-            // Degenerate segment: A≈B
+        // Check for a degenerate segment (A ≈ B)
+        double segmentLength = Math.hypot(bx - ax, by - ay);
+        if (segmentLength <= EPS) {
+            // Degenerate segment: A≈B, check distance from P to A
             return Math.hypot(px - ax, py - ay) <= EPS;
         }
-        double c = -(nx * ax + ny * ay);
-        double dist = Math.abs(nx * px + ny * py + c) / norm;
-        return dist <= EPS;
+
+        // Check collinearity using cross-product
+        // Cross product: (B - A) × (P - A)
+        // If cross-product is 0, points are collinear
+        double crossProduct = (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+        double crossProductMagnitude = Math.abs(crossProduct);
+
+        // Normalize by segment length to get perpendicular distance
+        double perpendicularDistance = crossProductMagnitude / segmentLength;
+
+        // Point is on the line segment if it's collinear (distance ~0)
+        // and within the bounding box (already checked above)
+        return perpendicularDistance <= EPS;
     }
 }
