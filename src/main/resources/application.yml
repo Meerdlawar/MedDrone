@@ -20,9 +20,9 @@ management:
 
   endpoint:
     health:
-      show-details: always
+      show-details: never
       probes:
-        enabled: true
+        enabled: false
 
 server:
   port: 8080

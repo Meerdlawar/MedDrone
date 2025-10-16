@@ -8,7 +8,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class PointInRegionTest {
+class PointInRegionUnitTest {
 
 
     private static LngLat p(double lng, double lat) { return new LngLat(lng, lat); }

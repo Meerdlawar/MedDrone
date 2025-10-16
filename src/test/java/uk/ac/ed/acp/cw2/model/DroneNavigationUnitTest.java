@@ -7,7 +7,7 @@ import uk.ac.ed.acp.cw2.data.LngLat;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class DroneNavigationTest {
+class DroneNavigationUnitTest {
 
     private static LngLat p(double lng, double lat) { return new LngLat(lng, lat); }
 
@@ -104,14 +104,14 @@ class DroneNavigationTest {
 
             // East (0°): +lng by STEP_SIZE, lat unchanged
             var e = DroneNavigation.Direction16.E.stepFrom(start);
-            assertEquals(DroneNavigation.STEP_SIZE, e.getLng(), 1e-12);
-            assertEquals(0.0, e.getLat(), 1e-12);
+            assertEquals(DroneNavigation.STEP_SIZE, e.lng(), 1e-12);
+            assertEquals(0.0, e.lat(), 1e-12);
             assertEquals(DroneNavigation.STEP_SIZE, DroneNavigation.distance(start, e), 1e-12);
 
             // North (90°): +lat by STEP_SIZE, lng unchanged
             var n = DroneNavigation.Direction16.N.stepFrom(start);
-            assertEquals(0.0, n.getLng(), 1e-12);
-            assertEquals(DroneNavigation.STEP_SIZE, n.getLat(), 1e-12);
+            assertEquals(0.0, n.lng(), 1e-12);
+            assertEquals(DroneNavigation.STEP_SIZE, n.lat(), 1e-12);
             assertEquals(DroneNavigation.STEP_SIZE, DroneNavigation.distance(start, n), 1e-12);
 
             // South-West (225°): distance is still STEP_SIZE

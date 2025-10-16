@@ -1,9 +1,0 @@
-###
-
-# curl -X POST -H "Content-Type: application/json" -d @/src/test/json_test_data/isInRegion/point_outside(1).json https://localhost:8080/api/v1/distanceTo
-POST http://localhost:8080/api/v1/isInRegion
-Content-Type: application/json
-
-< ../../json_test_data/isInRegion/point_outside(1).json
-
-###
