@@ -30,7 +30,7 @@ public final class PointInRegion {
         for (int i = 0; i < vertices.size() - 1; i++) { // iterate edges v[i] -> v[i+1]
             LngLat a = vertices.get(i);
             LngLat b = vertices.get(i + 1);
-            if (onSegment(point.getLng(), point.getLat(), a.getLng(), a.getLat(), b.getLng(), b.getLat())) {
+            if (onSegment(point.lng(), point.lat(), a.lng(), a.lat(), b.lng(), b.lat())) {
                 return true;
             }
         }
@@ -38,14 +38,14 @@ public final class PointInRegion {
         // Ray casting: Interior check with even-odd rule
         Path2D.Double path = new Path2D.Double(Path2D.WIND_EVEN_ODD);
         LngLat first = vertices.get(0);
-        path.moveTo(first.getLng(), first.getLat());
+        path.moveTo(first.lng(), first.lat());
         for (int i = 1; i < vertices.size(); i++) {
             LngLat v = vertices.get(i);
-            path.lineTo(v.getLng(), v.getLat());
+            path.lineTo(v.lng(), v.lat());
         }
         // Path is already closed by the repeated last vertex.
 
-        return path.contains(point.getLng(), point.getLat());
+        return path.contains(point.lng(), point.lat());
     }
 
     /** Ensures polygon is non-null, has at least 4 points, and is closed (first equals last). */
@@ -62,8 +62,8 @@ public final class PointInRegion {
 
     private static boolean equalCoords(LngLat a, LngLat b) {
         return a != null && b != null
-                && Objects.equals(a.getLng(), b.getLng())
-                && Objects.equals(a.getLat(), b.getLat());
+                && Objects.equals(a.lng(), b.lng())
+                && Objects.equals(a.lat(), b.lat());
     }
 
 

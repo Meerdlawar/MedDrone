@@ -1,42 +1,19 @@
 package uk.ac.ed.acp.cw2.data;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class LngLat {
-    private final Double lng;
-    private final Double lat;
+public record LngLat(
+        @NotNull(message = "Longitude is required")
+        @DecimalMin(value = "-180", message = "Longitude must be >= -180")
+        @DecimalMax(value = "180",  message = "Longitude must be <= 180")
+        Double lng,
 
-    public LngLat(Double lng, Double lat) {
-        if (lng == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Longitude is required");
-        }
-        if (lat == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Latitude is required");
-        }
-
-        if (lng < -180 || lng > 180) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "lng must be between -180 and 180");
-        }
-        if (lat < -90 || lat > 90) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "lng must be between -90 and 90");
-
-        }
-        this.lng = lng;
-        this.lat = lat;
-    }
-
-    public Double getLng() {
-        return lng;
-    }
-    public Double getLat() {
-        return lat;
-    }
-
-}
+        @NotNull(message = "Latitude is required")
+        @DecimalMin(value = "-90",  message = "Latitude must be >= -90")
+        @DecimalMax(value = "90",   message = "Latitude must be <= 90")
+        Double lat
+) {}

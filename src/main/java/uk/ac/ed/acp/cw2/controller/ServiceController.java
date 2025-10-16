@@ -7,10 +7,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import uk.ac.ed.acp.cw2.data.Dto;
 import uk.ac.ed.acp.cw2.data.LngLat;
 import uk.ac.ed.acp.cw2.model.*;
 import java.net.URL;
+import uk.ac.ed.acp.cw2.data.PairRequest;
+import uk.ac.ed.acp.cw2.data.StepByAngleRequest;
+import uk.ac.ed.acp.cw2.data.LocationPayload;
+import uk.ac.ed.acp.cw2.data.positionRegion;
 
 /**
  * Controller class that handles various HTTP endpoints for the application.
@@ -45,7 +48,7 @@ public class ServiceController {
 
 
     @PostMapping("/distanceTo")
-    public double distance(@RequestBody Dto.PairRequest req) {
+    public double distance(@RequestBody PairRequest req) {
         if (req.position1() == null || req.position2() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "position1 and position2 are required");
         }
@@ -53,7 +56,7 @@ public class ServiceController {
     }
 
     @PostMapping("/isCloseTo")
-    public boolean isCloseTo(@RequestBody Dto.PairRequest req) {
+    public boolean isCloseTo(@RequestBody PairRequest req) {
         if (req.position1() == null || req.position2() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "position1 and position2 are required");
         }
@@ -62,7 +65,7 @@ public class ServiceController {
 
 
     @PostMapping("/nextPosition")
-    public LngLat next(@Valid @RequestBody Dto.StepByAngleRequest req) {
+    public LngLat next(@Valid @RequestBody StepByAngleRequest req) {
         if (req.start() == null || req.angle() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "start and angle are required");
         }
@@ -72,14 +75,14 @@ public class ServiceController {
 
 
     @PostMapping("isInRegion")
-    public boolean isInRegion(@Valid @RequestBody Dto.LocationPayload req) {
+    public boolean isInRegion(@Valid @RequestBody LocationPayload req) {
         // Validate and build the point
-        Dto.positionRegion pos = req.position();
+        positionRegion pos = req.position();
         LngLat point = new LngLat(pos.lng(), pos.lat());
 
         // Build vertices; each LngLat constructor enforces sane ranges / null checks
         java.util.List<LngLat> verts = new java.util.ArrayList<>();
-        for (Dto.positionRegion v : req.region().vertices()) {
+        for (positionRegion v : req.region().vertices()) {
             if (v == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Null vertex in region");
             }
@@ -89,7 +92,3 @@ public class ServiceController {
         return PointInRegion.isInRegion(point, verts);
     }
 }
-
-
-
-

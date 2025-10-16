@@ -14,7 +14,7 @@ public class DroneNavigation {
 
     public static double distance(LngLat a, LngLat b) {
         // returns the euclidian distance (pythagorean theorem)
-        return Math.hypot(a.getLng() - b.getLng(), a.getLat() - b.getLat());
+        return Math.hypot(a.lng() - b.lng(), a.lat() - b.lat());
     }
 
     public static boolean isClose(LngLat a, LngLat b) {
@@ -38,7 +38,7 @@ public class DroneNavigation {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Angle must be one of {0,22.5,45,...,337.5}");
             }
-            double normVal = (bearingDeg % 360); // incase 360 was inputted it would map to E(0)
+            double normVal = (bearingDeg % 360); // incase 360 is, input it would map to E(0)
             int idx = (int) (normVal / 22.5) % 16;
             return values()[idx];
         }
@@ -47,7 +47,7 @@ public class DroneNavigation {
             double rad = Math.toRadians(bearingDeg);
             double dx = Math.cos(rad) * STEP_SIZE;
             double dy = Math.sin(rad) * STEP_SIZE;
-            return new LngLat(start.getLng() + dx, start.getLat() + dy);
+            return new LngLat(start.lng() + dx, start.lat() + dy);
         }
     }
 }
