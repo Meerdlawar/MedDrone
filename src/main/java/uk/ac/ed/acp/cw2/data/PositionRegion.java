@@ -4,4 +4,4 @@ import jakarta.validation.constraints.NotNull;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record positionRegion(@NotNull Double lng, @NotNull Double lat) {}
+    public record PositionRegion(@NotNull Double lng, @NotNull Double lat) {}

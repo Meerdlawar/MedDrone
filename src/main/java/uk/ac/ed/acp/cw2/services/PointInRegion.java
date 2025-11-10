@@ -1,6 +1,7 @@
-package uk.ac.ed.acp.cw2.model;
+package uk.ac.ed.acp.cw2.services;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import uk.ac.ed.acp.cw2.data.LngLat;
 
@@ -8,7 +9,8 @@ import java.awt.geom.Path2D;
 import java.util.List;
 import java.util.Objects;
 
-/** Point-in-polygon helper using Path2D (even-odd rule). */
+@Service
+// Point-in-polygon helper using Path2D (even-odd rule).
 public final class PointInRegion {
     // Very small geometric tolerance (in degrees) for border checks.
     // (Spec tolerates tiny floating errors)
@@ -16,12 +18,12 @@ public final class PointInRegion {
 
     private PointInRegion() {}
 
-    /**
-     * Returns true if (lng,lat) is inside the closed polygon (including the border).
-     * @param point  query point
-     * @param vertices closed polygon where vertices.get(0).equals(vertices.get(last))
-     * @throws ResponseStatusException(400) if the polygon is null, has <4 points, or is not closed
-     */
+
+//      # Returns true if (lng,lat) is inside the closed polygon (including the border).
+//      # @param point query point
+//      # @param vertices closed polygon where vertices.get(0).equals(vertices.get(last))
+//      # @throws ResponseStatusException(400) if the polygon is null, has <4 points, or is not closed
+
     public static boolean isInRegion(LngLat point, List<LngLat> vertices) {
         validateClosedPolygon(vertices);
 
@@ -48,7 +50,7 @@ public final class PointInRegion {
         return path.contains(point.lng(), point.lat());
     }
 
-    /** Ensures polygon is non-null, has at least 4 points, and is closed (first equals last). */
+    // Ensures polygon is non-null, has at least 4 points, and is closed (first equals last).
     private static void validateClosedPolygon(List<LngLat> vertices) {
         if (vertices == null || vertices.size() < 4) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Region must be a closed polygon");
@@ -67,7 +69,7 @@ public final class PointInRegion {
     }
 
 
-    /** True if point P is on segment AB within EPS. */
+    // True if point P is on segment AB within EPS.
     private static boolean onSegment(double px, double py,
                                      double ax, double ay,
                                      double bx, double by) {

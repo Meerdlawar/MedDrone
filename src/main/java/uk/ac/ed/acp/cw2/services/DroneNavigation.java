@@ -1,11 +1,13 @@
-package uk.ac.ed.acp.cw2.model;
+package uk.ac.ed.acp.cw2.services;
 
 
 import java.lang.Math;
 import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import uk.ac.ed.acp.cw2.data.LngLat;
 
+@Service
 public class DroneNavigation {
 
     /** Step length and “hit” radius from the spec */

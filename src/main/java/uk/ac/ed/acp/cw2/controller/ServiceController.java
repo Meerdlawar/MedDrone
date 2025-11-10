@@ -4,16 +4,14 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 import uk.ac.ed.acp.cw2.data.LngLat;
-import uk.ac.ed.acp.cw2.model.*;
+import uk.ac.ed.acp.cw2.services.*;
 import java.net.URL;
 import uk.ac.ed.acp.cw2.data.PairRequest;
 import uk.ac.ed.acp.cw2.data.StepByAngleRequest;
 import uk.ac.ed.acp.cw2.data.LocationPayload;
-import uk.ac.ed.acp.cw2.data.positionRegion;
+import uk.ac.ed.acp.cw2.data.PositionRegion;
 
 /**
  * Controller class that handles various HTTP endpoints for the application.
@@ -49,26 +47,17 @@ public class ServiceController {
 
     @PostMapping("/distanceTo")
     public double distance(@RequestBody PairRequest req) {
-        if (req.position1() == null || req.position2() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "position1 and position2 are required");
-        }
         return DroneNavigation.distance(req.position1(), req.position2());
     }
 
     @PostMapping("/isCloseTo")
     public boolean isCloseTo(@RequestBody PairRequest req) {
-        if (req.position1() == null || req.position2() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "position1 and position2 are required");
-        }
         return DroneNavigation.isClose(req.position1(), req.position2());
     }
 
 
     @PostMapping("/nextPosition")
     public LngLat next(@Valid @RequestBody StepByAngleRequest req) {
-        if (req.start() == null || req.angle() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "start and angle are required");
-        }
         var dir = DroneNavigation.Direction16.angle_direction(req.angle());
         return dir.stepFrom(req.start());  // return LngLat directly
     }
@@ -77,18 +66,14 @@ public class ServiceController {
     @PostMapping("isInRegion")
     public boolean isInRegion(@Valid @RequestBody LocationPayload req) {
         // Validate and build the point
-        positionRegion pos = req.position();
+        PositionRegion pos = req.position();
         LngLat point = new LngLat(pos.lng(), pos.lat());
 
         // Build vertices; each LngLat constructor enforces sane ranges / null checks
         java.util.List<LngLat> verts = new java.util.ArrayList<>();
-        for (positionRegion v : req.region().vertices()) {
-            if (v == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Null vertex in region");
-            }
+        for (PositionRegion v : req.region().vertices()) {
             verts.add(new LngLat(v.lng(), v.lat()));
         }
-
         return PointInRegion.isInRegion(point, verts);
     }
 }

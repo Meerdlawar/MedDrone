@@ -8,12 +8,12 @@ import jakarta.validation.constraints.NotNull;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record LngLat(
         @NotNull(message = "Longitude is required")
-        @DecimalMin(value = "-180", message = "Longitude must be >= -180")
-        @DecimalMax(value = "180",  message = "Longitude must be <= 180")
+        @DecimalMin(value = "-4", message = "Longitude must be within Edinburgh")
+        @DecimalMax(value = "-2",  message = "Longitude must be within Edinburgh")
         Double lng,
 
         @NotNull(message = "Latitude is required")
-        @DecimalMin(value = "-90",  message = "Latitude must be >= -90")
-        @DecimalMax(value = "90",   message = "Latitude must be <= 90")
+        @DecimalMin(value = "56",  message = "Latitude must be within Edinburgh")
+        @DecimalMax(value = "57",   message = "Latitude must be witin Edinburgh")
         Double lat
 ) {}

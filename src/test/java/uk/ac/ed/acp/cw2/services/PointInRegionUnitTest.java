@@ -1,4 +1,4 @@
-package uk.ac.ed.acp.cw2.model;
+package uk.ac.ed.acp.cw2.services;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
