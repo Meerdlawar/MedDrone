@@ -3,12 +3,9 @@ package uk.ac.ed.acp.cw2.controller;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.web.bind.annotation.*;
 import uk.ac.ed.acp.cw2.data.LngLat;
 import uk.ac.ed.acp.cw2.services.*;
-import java.net.URL;
 import uk.ac.ed.acp.cw2.data.PairRequest;
 import uk.ac.ed.acp.cw2.data.StepByAngleRequest;
 import uk.ac.ed.acp.cw2.data.LocationPayload;
@@ -30,8 +27,8 @@ public class ServiceController {
 
     private final String serviceUrl;
 
-    public ServiceController(String serviceUrl) {
-        this.serviceUrl = serviceUrl;
+    public ServiceController(String ilpEndPoint) {
+        this.serviceUrl = ilpEndPoint;
     }
 
 
