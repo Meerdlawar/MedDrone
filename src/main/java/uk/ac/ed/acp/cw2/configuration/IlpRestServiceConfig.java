@@ -11,5 +11,16 @@ import java.net.URL;
 @EnableScheduling
 public class IlpRestServiceConfig {
 
+    @Value("${ilp.service.url}")
+    public String defaultServiceUrl;
+
+    @Bean
+    public String ilpEndPoint() {
+        String envEndPoint = System.getenv("ILP_ENDPOINT");
+        if (envEndPoint == null || envEndPoint.isEmpty()) {
+            envEndPoint = defaultServiceUrl;
+        }
+        return envEndPoint;
+    }
 
 }

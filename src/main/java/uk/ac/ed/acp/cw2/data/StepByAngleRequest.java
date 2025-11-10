@@ -4,11 +4,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.validation.Valid;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
     public record StepByAngleRequest(
-            @NotNull LngLat start,
-            @NotNull @JsonProperty("angle") Double angle
+            @Valid @NotNull LngLat start,
+            @Valid @NotNull @JsonProperty("angle") Double angle
     ) {
         @JsonCreator public StepByAngleRequest(
                 @JsonProperty("start") LngLat start,

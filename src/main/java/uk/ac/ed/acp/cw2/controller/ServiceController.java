@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.web.bind.annotation.*;
 import uk.ac.ed.acp.cw2.data.LngLat;
 import uk.ac.ed.acp.cw2.services.*;
@@ -27,8 +28,11 @@ public class ServiceController {
 
     private static final Logger logger = LoggerFactory.getLogger(ServiceController.class);
 
-    @Value("${ilp.service.url}")
-    public URL serviceUrl;
+    private final String serviceUrl;
+
+    public ServiceController(String serviceUrl) {
+        this.serviceUrl = serviceUrl;
+    }
 
 
     @GetMapping("/")
