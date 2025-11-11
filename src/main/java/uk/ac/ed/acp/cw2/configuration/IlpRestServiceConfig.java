@@ -12,16 +12,12 @@ import java.net.URL;
 @EnableScheduling
 public class IlpRestServiceConfig {
 
-    private static final String defaultServiceUrl = "https://ilp-rest-2025-bvh6e9hschfagrgy.ukwest-01.azurewebsites.net";
+    private static final String DEFAULT_URL =
+            "https://ilp-rest-2025-bvh6e9hschfagrgy.ukwest-01.azurewebsites.net";
 
     @Bean
-    public String ilpEndPoint() {
-        String envEndPoint = System.getenv("${ILP_SERVICE_URL}");
-        if (envEndPoint == null || envEndPoint.isEmpty()) {
-            envEndPoint = defaultServiceUrl;
-        }
-        return envEndPoint;
+    public String ilpEndPoint(@Value("${ILP_SERVICE_URL:" + DEFAULT_URL + "}") String configuredUrl) {
+        return configuredUrl;
     }
-
-
 }
+
