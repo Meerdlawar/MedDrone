@@ -31,4 +31,4 @@ server:
 
 ilp:
   service:
-    url: https://ilp-rest-2025-bvh6e9hschfagrgy.ukwest-01.azurewebsites.net/
+    url: https://ilp-rest-2025-bvh6e9hschfagrgy.ukwest-01.azurewebsites.net

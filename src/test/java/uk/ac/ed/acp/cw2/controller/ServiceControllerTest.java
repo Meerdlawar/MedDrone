@@ -28,9 +28,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ExtendWith(SpringExtension.class)
-@WebMvcTest(ServiceController.class)
+@WebMvcTest(DroneController.class)
 @TestPropertySource(properties = { "ilp.service.url=http://localhost:8080" })
-class ServiceControllerWebTest {
+class DroneControllerWebTest {
 
     @Autowired
     MockMvc mvc;

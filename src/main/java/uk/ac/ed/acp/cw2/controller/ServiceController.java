@@ -3,13 +3,14 @@ package uk.ac.ed.acp.cw2.controller;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import uk.ac.ed.acp.cw2.data.LngLat;
+import uk.ac.ed.acp.cw2.data.*;
 import uk.ac.ed.acp.cw2.services.*;
-import uk.ac.ed.acp.cw2.data.PairRequest;
-import uk.ac.ed.acp.cw2.data.StepByAngleRequest;
-import uk.ac.ed.acp.cw2.data.LocationPayload;
-import uk.ac.ed.acp.cw2.data.PositionRegion;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Controller class that handles various HTTP endpoints for the application.
@@ -26,9 +27,11 @@ public class ServiceController {
     private static final Logger logger = LoggerFactory.getLogger(ServiceController.class);
 
     private final String serviceUrl;
+    private final DroneService droneService;
 
-    public ServiceController(String ilpEndPoint) {
+    public ServiceController(@Qualifier("ilpEndPoint") String ilpEndPoint, DroneService droneService) {
         this.serviceUrl = ilpEndPoint;
+        this.droneService = droneService;
     }
 
 
@@ -47,12 +50,12 @@ public class ServiceController {
 
 
     @PostMapping("/distanceTo")
-    public double distance(@RequestBody PairRequest req) {
+    public double distance(@Valid @RequestBody PairRequest req) {
         return DroneNavigation.distance(req.position1(), req.position2());
     }
 
     @PostMapping("/isCloseTo")
-    public boolean isCloseTo(@RequestBody PairRequest req) {
+    public boolean isCloseTo(@Valid @RequestBody PairRequest req) {
         return DroneNavigation.isClose(req.position1(), req.position2());
     }
 
@@ -64,7 +67,7 @@ public class ServiceController {
     }
 
 
-    @PostMapping("isInRegion")
+    @PostMapping("/isInRegion")
     public boolean isInRegion(@Valid @RequestBody LocationPayload req) {
         // Validate and build the point
         PositionRegion pos = req.position();
@@ -76,5 +79,30 @@ public class ServiceController {
             verts.add(new LngLat(v.lng(), v.lat()));
         }
         return PointInRegion.isInRegion(point, verts);
+    }
+
+    @GetMapping("/dronesWithCooling/{state}")
+    public int[] dronesWithCooling(@PathVariable boolean state) {
+        List<DroneInfo> drones = droneService.fetchDrones();
+        List<Integer> droneId = new ArrayList<>();
+        for (DroneInfo drone : drones) {
+            if (drone.capability().cooling() == state) {
+                droneId.add(drone.id());
+            }
+        }
+        return droneId.stream().mapToInt(i -> i).toArray();
+    }
+
+    @GetMapping("/dronesWithCooling/{droneid}")
+    public ResponseEntity<DroneInfo> droneDetails(@PathVariable int droneid) {
+        List<DroneInfo> drones = droneService.fetchDrones();
+
+        for (DroneInfo drone : drones) {
+            if (drone.id() == droneid) {
+                DroneInfo dto = new DroneInfo(drone.name(), drone.id(), drone.capability());
+                return ResponseEntity.ok(dto);
+            }
+        }
+        return ResponseEntity.notFound().build();
     }
 }
