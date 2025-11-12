@@ -4,6 +4,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import uk.ac.ed.acp.cw2.data.DroneInfo;
+import uk.ac.ed.acp.cw2.data.QueryAttributes;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -75,25 +76,6 @@ public class DroneService {
         return droneIds.stream().mapToInt(i -> i).toArray();
     }
 
-    private boolean compareBoolean(boolean fieldValue, String operator, String value) {
-        boolean v = parseBoolean(value);
-        switch (operator) {
-            case "=":  return fieldValue == v;
-            case "!=": return fieldValue != v;
-            default:   throw new IllegalArgumentException("Unknown boolean operator: " + operator);
-        }
-    }
-
-    private boolean compareDouble(double fieldValue, String operator, String value) {
-        double v = parseDouble(value);
-        switch (operator) {
-            case "=":  return fieldValue == v;
-            case "!=": return fieldValue != v;
-            case "<":  return fieldValue < v;
-            case ">":  return fieldValue > v;
-            default:   throw new IllegalArgumentException("Unknown numeric operator: " + operator);
-        }
-    }
 
     private boolean parseBoolean(String s) {
         return Boolean.parseBoolean(s);
@@ -103,4 +85,70 @@ public class DroneService {
         return Double.parseDouble(s);
     }
 
+    public int[] filterDroneAttributes(List<QueryAttributes> reqs) {
+        List<DroneInfo> drones = fetchDrones();
+        List<Integer> out = new ArrayList<>();
+
+        for (DroneInfo d : drones) {
+            if (matchesAll(d, reqs)) {
+                out.add(d.id());
+            }
+        }
+        return out.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    private boolean matchesAll(DroneInfo d, List<QueryAttributes> reqs) {
+        for (QueryAttributes r : reqs) {
+            if (!matches(d, r)) return false;  // short-circuit AND
+        }
+        return true;
+    }
+
+    private boolean matches(DroneInfo d, QueryAttributes r) {
+        var cap = d.capability();
+        String attr = r.attribute();
+        String op   = r.operator();
+        String val  = r.value();
+
+        switch (attr) {
+            case "cooling":
+                return compareBoolean(cap.cooling(), op, val);
+            case "heating":
+                return compareBoolean(cap.heating(), op, val);
+            case "capacity":
+                return compareDouble(cap.capacity(), op, val);
+            case "maxMoves":
+                return compareDouble(cap.maxMoves(), op, val);
+            case "costPerMove":
+                return compareDouble(cap.costPerMove(), op, val);
+            case "costInitial":
+                return compareDouble(cap.costInitial(), op, val);
+            case "costFinal":
+                return compareDouble(cap.costFinal(), op, val);
+            default:
+                throw new IllegalArgumentException("Unknown attribute: " + attr);
+        }
+    }
+
+    private boolean compareBoolean(boolean fieldValue, String operator, String value) {
+        boolean v = Boolean.parseBoolean(value);
+        switch (operator) {
+            case "=":  return fieldValue == v;
+            case "!=": return fieldValue != v;
+            default:   throw new IllegalArgumentException(
+                    "Operator '" + operator + "' not supported for boolean");
+        }
+    }
+
+    private boolean compareDouble(double fieldValue, String operator, String value) {
+        double v = Double.parseDouble(value);
+        switch (operator) {
+            case "=":  return fieldValue == v;
+            case "!=": return fieldValue != v;
+            case "<":  return fieldValue <  v;
+            case ">":  return fieldValue >  v;
+            default:   throw new IllegalArgumentException(
+                    "Operator '" + operator + "' not supported for numeric");
+        }
+    }
 }

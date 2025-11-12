@@ -19,16 +19,8 @@ public class DroneDynamicQueryController {
         return droneService.queryAttribute(attributeName, "=" , attributeValue);
     }
 
-//    @PostMapping("/query")
-//    public int[] query(List<QueryAttributes> reqs) {
-//        // We take the list of queries
-//        // We take each query in the list and call queryAttribute, this returns a list
-//        // Then we iterate through the list and call
-//        // We do this over and over using the same list
-//        for (QueryAttributes req: reqs) {
-//            int curr[] = droneService.queryAttribute(req.attribute(), req.operator(), req.value());
-//
-//        }
-//    }
-
+    @PostMapping("/query")
+    public int[] query(@RequestBody List<QueryAttributes> reqs) {
+        return droneService.filterDroneAttributes(reqs);
+    }
 }
