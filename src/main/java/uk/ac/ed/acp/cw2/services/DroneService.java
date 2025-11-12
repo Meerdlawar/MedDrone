@@ -12,26 +12,24 @@ import java.util.List;
 
 @Service
 public class DroneService {
-    private final RestClient client;
+    private final RestClient restClient;
 
     public DroneService(String ilpEndPoint) {
-        this.client = RestClient.builder()
+        this.restClient = RestClient.builder()
                 .baseUrl(ilpEndPoint)
                 .build();
     }
 
-    public <T> List<T> fetch(String endpoint, ParameterizedTypeReference<List<T>> typeRef) {
-        try {
-            List<T> body = client.get().uri(endpoint).retrieve().body(typeRef);
-            return body != null ? body : List.of();
-        } catch (Exception ex) {
-            // log and fail soft; or rethrow as a custom RuntimeException
-            // logger.error("Failed to fetch {}: {}", endpoint, ex.getMessage(), ex);
-            return List.of();
-        }
+    public <type> List<type> fetch(ParameterizedTypeReference<List<type>> typeRef, String path) {
+
+            return restClient
+                    .get()
+                    .uri(path)
+                    .retrieve()
+                    .body(typeRef);
     }
 
     public List<DroneInfo> fetchDrones() {
-        return fetch("/drones", new ParameterizedTypeReference<>() {});
+        return fetch(new ParameterizedTypeReference<>() {}, "/drones");
     }
 }

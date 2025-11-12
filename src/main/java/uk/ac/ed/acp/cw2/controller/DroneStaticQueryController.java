@@ -21,21 +21,31 @@ import java.util.List;
 
 
 @RestController()
-@RequestMapping("/api/v1/droneswithCooling")
+@RequestMapping("/api/v1/")
 public class DroneStaticQueryController {
 
-    private static final Logger logger = LoggerFactory.getLogger(ServiceController.class);
+    private static final Logger logger = LoggerFactory.getLogger(DroneStaticQueryController.class);
 
-    private final String serviceUrl;
     private final DroneService droneService;
 
-    public DroneStaticQueryController(@Qualifier("ilpEndPoint") String ilpEndPoint, DroneService droneService) {
-        this.serviceUrl = ilpEndPoint;
+    public DroneStaticQueryController(DroneService droneService) {
         this.droneService = droneService;
     }
 
+    @GetMapping("droneswithCooling/{state}")
+    public int[] dronesWithCooling(@PathVariable boolean state) {
+        List<DroneInfo> drones = droneService.fetchDrones();
+        List<Integer> droneId = new ArrayList<>();
+        for (DroneInfo drone : drones) {
+            if (drone.capability().cooling() == state) {
+                droneId.add(drone.id());
+            }
+        }
+        return droneId.stream().mapToInt(i -> i).toArray();
+    }
 
-    @GetMapping("/dronesWithCooling/{droneid}")
+
+    @GetMapping("droneDetails/{droneid}")
     public ResponseEntity<DroneInfo> droneDetails(@PathVariable int droneid) {
         List<DroneInfo> drones = droneService.fetchDrones();
 
