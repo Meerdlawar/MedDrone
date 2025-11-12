@@ -2,11 +2,13 @@ package uk.ac.ed.acp.cw2.data;
 
 import jakarta.validation.constraints.NotNull;
 
-public record DroneInfo (
+import java.util.List;
+
+public record QueryAttributes(
         @NotNull
-        String name,
+        String attribute,
         @NotNull
-        int id,
+        String operator,
         @NotNull
-        DroneCapability capability
+        String value
 ) {}

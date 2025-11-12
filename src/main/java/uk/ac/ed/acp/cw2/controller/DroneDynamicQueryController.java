@@ -1,16 +1,8 @@
 package uk.ac.ed.acp.cw2.controller;
 
-import jakarta.validation.constraints.NotNull;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestClient;
-import uk.ac.ed.acp.cw2.data.DroneInfo;
+import org.springframework.web.bind.annotation.*;
+import uk.ac.ed.acp.cw2.data.QueryAttributes;
 import uk.ac.ed.acp.cw2.services.DroneService;
-
-import java.util.ArrayList;
 import java.util.List;
 
 @RestController()
@@ -18,59 +10,25 @@ import java.util.List;
 public class DroneDynamicQueryController {
 
     private final DroneService droneService;
-
     public DroneDynamicQueryController(DroneService droneService) {
         this.droneService = droneService;
     }
 
-    @GetMapping("/queryAsPath/{attribute-name}/{attribute-value}")
+    @GetMapping("/queryAsPath/{attributeName}/{attributeValue}")
     public int[] queryAsPath(@PathVariable String attributeName, @PathVariable String attributeValue) {
-        List<DroneInfo> drones = droneService.fetchDrones();
-        List<Integer> droneId = new ArrayList<>();
-        for (DroneInfo drone: drones) {
-//            if (drone.capability().attributeName == attributeValue) {
-//                droneId.add(drone.id());
-//            }
-            switch (attributeName) {
-                case "cooling":
-//                    if (drone.capability().cooling() == attributeValue) {
-//                        droneId.add(drone.id());
-//                    }
-                    break;
-                case "heating":
-//                    if (drone.capability().cooling() == attributeValue) {
-//                        droneId.add(drone.id());
-//                    }
-                    break;
-                case "capacity":
-//                    if (drone.capability().cooling() == attributeValue) {
-//                        droneId.add(drone.id());
-//                    }
-                    break;
-
-                case "maxMoves":
-//                    if (drone.capability().cooling() == attributeValue) {
-//                        droneId.add(drone.id());
-//                    }
-                    break;
-                case "costPerMove":
-//                    if (drone.capability().cooling() == attributeValue) {
-//                        droneId.add(drone.id());
-//                    }
-                    break;
-                case "costInitial":
-//                    if (drone.capability().cooling() == attributeValue) {
-//                        droneId.add(drone.id());
-//                    }
-                    break;
-                case "costFinal":
-//                    if (drone.capability().cooling() == attributeValue) {
-//                        droneId.add(drone.id());
-//                    }
-                    break;
-            }
-        }
-        return droneId.stream().mapToInt(i -> i).toArray();
+        return droneService.queryAttribute(attributeName, "=" , attributeValue);
     }
+
+//    @PostMapping("/query")
+//    public int[] query(List<QueryAttributes> reqs) {
+//        // We take the list of queries
+//        // We take each query in the list and call queryAttribute, this returns a list
+//        // Then we iterate through the list and call
+//        // We do this over and over using the same list
+//        for (QueryAttributes req: reqs) {
+//            int curr[] = droneService.queryAttribute(req.attribute(), req.operator(), req.value());
+//
+//        }
+//    }
 
 }

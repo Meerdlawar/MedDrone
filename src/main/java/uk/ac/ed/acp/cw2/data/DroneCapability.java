@@ -11,13 +11,13 @@ public record DroneCapability (
         @NotNull
         boolean heating,
         @NotNull
-        float capacity,
+        double capacity,
         @NotNull
-        int maxMoves,
+        double maxMoves,
         @NotNull
-        float costPerMove,
+        double costPerMove,
         @NotNull
-        float costInitial,
+        double costInitial,
         @NotNull
-        float costFinal
+        double costFinal
 ) {}
