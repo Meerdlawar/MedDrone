@@ -34,57 +34,6 @@ public class DroneService {
         return fetch(new ParameterizedTypeReference<>() {}, "/drones");
     }
 
-    public int[] queryAttribute(String attribute, String operator, String value) {
-        List<DroneInfo> drones = fetchDrones();
-        List<Integer> droneIds = new ArrayList<>();
-
-        for (DroneInfo drone : drones) {
-            var cap = drone.capability();
-            boolean matches;
-
-            switch (attribute) {
-                case "cooling":
-                    matches = compareBoolean(cap.cooling(), operator, value);
-                    break;
-                case "heating":
-                    matches = compareBoolean(cap.heating(), operator, value);
-                    break;
-                case "capacity":
-                    matches = compareDouble(cap.capacity(), operator, value);
-                    break;
-                case "maxMoves":
-                    matches = compareDouble(cap.maxMoves(), operator, value);
-                    break;
-                case "costPerMove":
-                    matches = compareDouble(cap.costPerMove(), operator, value);
-                    break;
-                case "costInitial":
-                    matches = compareDouble(cap.costInitial(), operator, value);
-                    break;
-                case "costFinal":
-                    matches = compareDouble(cap.costFinal(), operator, value);
-                    break;
-                default:
-                    throw new IllegalArgumentException("Unknown attribute: " + attribute);
-            }
-
-            if (matches) {
-                droneIds.add(drone.id());
-            }
-        }
-
-        return droneIds.stream().mapToInt(i -> i).toArray();
-    }
-
-
-    private boolean parseBoolean(String s) {
-        return Boolean.parseBoolean(s);
-    }
-
-    private double parseDouble(String s) {
-        return Double.parseDouble(s);
-    }
-
     public int[] filterDroneAttributes(List<QueryAttributes> reqs) {
         List<DroneInfo> drones = fetchDrones();
         List<Integer> out = new ArrayList<>();
@@ -99,7 +48,7 @@ public class DroneService {
 
     private boolean matchesAll(DroneInfo d, List<QueryAttributes> reqs) {
         for (QueryAttributes r : reqs) {
-            if (!matches(d, r)) return false;  // short-circuit AND
+            if (!matches(d, r)) return false;
         }
         return true;
     }
