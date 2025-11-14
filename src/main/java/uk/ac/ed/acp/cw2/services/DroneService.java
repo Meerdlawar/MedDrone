@@ -1,8 +1,10 @@
 package uk.ac.ed.acp.cw2.services;
 
+import org.json.JSONObject;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import uk.ac.ed.acp.cw2.data.DroneAvailability;
 import uk.ac.ed.acp.cw2.data.DroneInfo;
 import uk.ac.ed.acp.cw2.data.QueryAttributes;
 
@@ -32,6 +34,10 @@ public class DroneService {
 
     public List<DroneInfo> fetchDrones() {
         return fetch(new ParameterizedTypeReference<>() {}, "/drones");
+    }
+
+    public List<DroneAvailability> fetchDroneAvailability() {
+        return fetch(new ParameterizedTypeReference<>() {}, "/drones-for-service-points");
     }
 
     public int[] filterDroneAttributes(List<QueryAttributes> reqs) {

@@ -7,11 +7,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.Valid;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-    public record StepByAngleRequest(
+    public record NextPosition(
             @Valid @NotNull LngLat start,
             @Valid @NotNull @JsonProperty("angle") Double angle
     ) {
-        @JsonCreator public StepByAngleRequest(
+        @JsonCreator public NextPosition(
                 @JsonProperty("start") LngLat start,
                 @JsonProperty("angle") Double angle
         ) {

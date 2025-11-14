@@ -1,11 +1,11 @@
 package uk.ac.ed.acp.cw2.controller;
 
-import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+import uk.ac.ed.acp.cw2.data.DispatchRequirements;
 import uk.ac.ed.acp.cw2.data.MedDispatchRec;
 import uk.ac.ed.acp.cw2.data.QueryAttributes;
 import uk.ac.ed.acp.cw2.services.DroneService;
-
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,21 +32,60 @@ public class DroneDynamicQueryController {
     }
 
     @PostMapping("/queryAvailableDrones")
-    public int[] queryAvailableDrones(@RequestBody List<MedDispatchRec> recs) {
-        // required:
-        //      - ID
-        //      - Requirements:
-        //          - capacity
-        // Drone needs to meet DispatchRequirements
-        List<Integer> out = new ArrayList<>();
-        for (MedDispatchRec rec : recs) {
+    public int[] queryAvailableDrones(@RequestBody List<MedDispatchRec> dispatches) {
+        List<QueryAttributes> reqs = new ArrayList<>();
 
+        for (MedDispatchRec dispatch : dispatches) {
+            DispatchRequirements requirements = dispatch.requirements();
+
+            if (requirements == null) {
+                continue;
+            }
+
+
+            reqs.add(new QueryAttributes(
+                    "capacity",
+                    "=",
+                    String.valueOf(requirements.capacity())
+            ));
+
+
+
+            // Example: only require cooling if the dispatch needs it
+            if (requirements.cooling() == true) {
+                reqs.add(new QueryAttributes(
+                        "cooling",
+                        "=",
+                        "true"
+                ));
+            }
+
+            // Example: only require heating if the dispatch needs it
+            if (requirements.heating() == true) {
+                reqs.add(new QueryAttributes(
+                        "heating",
+                        "=",
+                        "true"
+                ));
+            }
+
+            if (requirements.maxCost() != null) {
+                reqs.add(new QueryAttributes(
+                        "capacity",
+                        "<",
+                        String.valueOf(requirements.maxCost())
+                ));
+            }
+
+
+
+            // other constraints
+            // - date
+            // - time
         }
 
-        // Drone meets availability on certain days
-
-
-        return null;
+        // Reuse the existing filtering logic in DroneService
+        return droneService.filterDroneAttributes(reqs);
     }
 
 }

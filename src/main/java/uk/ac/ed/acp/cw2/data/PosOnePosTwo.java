@@ -5,4 +5,4 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.Valid;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-    public record PairRequest(@Valid @NotNull LngLat position1, @Valid @NotNull LngLat position2) {}
+    public record PosOnePosTwo(@Valid @NotNull LngLat position1, @Valid @NotNull LngLat position2) {}

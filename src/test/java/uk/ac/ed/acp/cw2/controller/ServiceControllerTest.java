@@ -12,11 +12,11 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import uk.ac.ed.acp.cw2.data.LngLat;
-import uk.ac.ed.acp.cw2.data.PairRequest;
-import uk.ac.ed.acp.cw2.data.StepByAngleRequest;
+import uk.ac.ed.acp.cw2.data.PosOnePosTwo;
+import uk.ac.ed.acp.cw2.data.NextPosition;
 import uk.ac.ed.acp.cw2.data.Region;
 import uk.ac.ed.acp.cw2.data.PositionRegion;
-import uk.ac.ed.acp.cw2.data.LocationPayload;
+import uk.ac.ed.acp.cw2.data.IsInRegion;
 import uk.ac.ed.acp.cw2.services.DroneNavigation;
 import uk.ac.ed.acp.cw2.services.PointInRegion;
 
@@ -42,7 +42,7 @@ class DroneControllerWebTest {
     void distanceTo_isMapped_and_usesStatic() throws Exception {
         LngLat p1 = new LngLat(-3.19, 55.94);
         LngLat p2 = new LngLat(-3.18, 55.95);
-        PairRequest body = new PairRequest(p1, p2);
+        PosOnePosTwo body = new PosOnePosTwo(p1, p2);
 
         try (MockedStatic<DroneNavigation> mocked = Mockito.mockStatic(DroneNavigation.class)) {
             mocked.when(() -> DroneNavigation.distance(eq(p1), eq(p2))).thenReturn(42.0);
@@ -61,7 +61,7 @@ class DroneControllerWebTest {
     void isCloseTo_isMapped_and_usesStatic() throws Exception {
         LngLat p1 = new LngLat(-3.19, 55.94);
         LngLat p2 = new LngLat(-3.19, 55.9401);
-        PairRequest body = new PairRequest(p1, p2);
+        PosOnePosTwo body = new PosOnePosTwo(p1, p2);
 
         try (MockedStatic<DroneNavigation> mocked = Mockito.mockStatic(DroneNavigation.class)) {
             mocked.when(() -> DroneNavigation.isClose(eq(p1), eq(p2))).thenReturn(true);
@@ -81,7 +81,7 @@ class DroneControllerWebTest {
         // No mocking needed here; we use the real enum for a slice test.
         LngLat start = new LngLat(0.0, 0.0);
         // 0° should step due East by STEP_SIZE
-        StepByAngleRequest body = new StepByAngleRequest(start, 0.0);
+        NextPosition body = new NextPosition(start, 0.0);
 
         mvc.perform(post("/api/v1/nextPosition")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -100,7 +100,7 @@ class DroneControllerWebTest {
                 new PositionRegion( 1.0,  1.0),
                 new PositionRegion(-1.0,  1.0)
         ));
-        LocationPayload body = new LocationPayload(new PositionRegion(0.0, 0.0), square);
+        IsInRegion body = new IsInRegion(new PositionRegion(0.0, 0.0), square);
 
         try (MockedStatic<PointInRegion> mocked = Mockito.mockStatic(PointInRegion.class)) {
             mocked.when(() -> PointInRegion.isInRegion(any(LngLat.class), any(java.util.List.class)))
@@ -124,7 +124,7 @@ class DroneControllerWebTest {
                 new PositionRegion(1.0, 0.0),
                 new PositionRegion(0.0, 1.0)
         ));
-        LocationPayload body = new LocationPayload(new PositionRegion(0.1, 0.1), tri);
+        IsInRegion body = new IsInRegion(new PositionRegion(0.1, 0.1), tri);
 
         mvc.perform(post("/api/v1/isInRegion")
                         .contentType(MediaType.APPLICATION_JSON)
