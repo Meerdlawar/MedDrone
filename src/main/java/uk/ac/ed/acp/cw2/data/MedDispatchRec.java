@@ -1,5 +1,6 @@
 package uk.ac.ed.acp.cw2.data;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -18,6 +19,7 @@ public record MedDispatchRec(
         LocalDate date,
 
         // Optional (may be null if not present in JSON)
+        @JsonFormat(pattern = "H:mm")
         LocalTime time,
 
         // Required object; its own fields will be validated

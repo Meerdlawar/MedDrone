@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 4,
+      "cooling": true,
+      "heating": true,
+      "maxCost": 0.02
+    },
+    "delivery": {
+      "lng": -3.00,
+      "lat": 55.121
+    }
+  }
+]

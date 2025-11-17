@@ -20,12 +20,4 @@ public record DispatchRequirements(
 
         // Optional – only used if not null
         Double maxCost
-) {
-
-    // Validation: cooling and heating must not both be true
-    @AssertTrue(message = "Cooling and heating requirements are mutually exclusive")
-    @JsonIgnore
-    public boolean isCoolingHeatingValid() {
-        return !(cooling && heating);
-    }
-}
+) {}

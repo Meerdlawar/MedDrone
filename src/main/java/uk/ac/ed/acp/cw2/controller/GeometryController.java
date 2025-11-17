@@ -7,12 +7,6 @@ import org.springframework.web.bind.annotation.*;
 import uk.ac.ed.acp.cw2.data.*;
 import uk.ac.ed.acp.cw2.services.*;
 
-/**
- * Controller class that handles various HTTP endpoints for the application.
- * Provides functionality for serving the index page, retrieving a static UUID,
- * and managing key-value pairs through POST requests.
- */
-
 
 @RestController()
 @RequestMapping("/api/v1")

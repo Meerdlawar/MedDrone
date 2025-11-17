@@ -1,6 +1,8 @@
 package uk.ac.ed.acp.cw2.data;
 
+import java.util.List;
+
 public record ListDrones(
         int id,
-        DroneAvailability availability
+        List<DroneAvailability> availability
 ) {}

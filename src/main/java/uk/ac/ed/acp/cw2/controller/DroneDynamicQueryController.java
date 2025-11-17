@@ -1,11 +1,11 @@
 package uk.ac.ed.acp.cw2.controller;
 
 import org.springframework.web.bind.annotation.*;
-import uk.ac.ed.acp.cw2.data.DispatchRequirements;
 import uk.ac.ed.acp.cw2.data.MedDispatchRec;
 import uk.ac.ed.acp.cw2.data.QueryAttributes;
-import uk.ac.ed.acp.cw2.services.DroneService;
-import java.time.LocalDate;
+import uk.ac.ed.acp.cw2.services.DroneAvailabilityService;
+import uk.ac.ed.acp.cw2.services.DroneQueryService;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,14 +13,16 @@ import java.util.List;
 @RequestMapping("/api/v1")
 public class DroneDynamicQueryController {
 
-    private final DroneService droneService;
-    public DroneDynamicQueryController(DroneService droneService) {
+    private final DroneQueryService droneService;
+    private final DroneAvailabilityService availabilityService;
+    public DroneDynamicQueryController(DroneQueryService droneService, DroneAvailabilityService availabilityService) {
         this.droneService = droneService;
+        this.availabilityService = availabilityService;
     }
 
     @GetMapping("/queryAsPath/{attributeName}/{attributeValue}")
     public int[] queryAsPath(@PathVariable String attributeName, @PathVariable String attributeValue) {
-        List<QueryAttributes> reqs = new ArrayList<QueryAttributes>();
+        List<QueryAttributes> reqs = new ArrayList<>();
         QueryAttributes req = new QueryAttributes(attributeName, "=", attributeValue);
         reqs.add(req);
         return droneService.filterDroneAttributes(reqs);
@@ -33,59 +35,6 @@ public class DroneDynamicQueryController {
 
     @PostMapping("/queryAvailableDrones")
     public int[] queryAvailableDrones(@RequestBody List<MedDispatchRec> dispatches) {
-        List<QueryAttributes> reqs = new ArrayList<>();
-
-        for (MedDispatchRec dispatch : dispatches) {
-            DispatchRequirements requirements = dispatch.requirements();
-
-            if (requirements == null) {
-                continue;
-            }
-
-
-            reqs.add(new QueryAttributes(
-                    "capacity",
-                    "=",
-                    String.valueOf(requirements.capacity())
-            ));
-
-
-
-            // Example: only require cooling if the dispatch needs it
-            if (requirements.cooling() == true) {
-                reqs.add(new QueryAttributes(
-                        "cooling",
-                        "=",
-                        "true"
-                ));
-            }
-
-            // Example: only require heating if the dispatch needs it
-            if (requirements.heating() == true) {
-                reqs.add(new QueryAttributes(
-                        "heating",
-                        "=",
-                        "true"
-                ));
-            }
-
-            if (requirements.maxCost() != null) {
-                reqs.add(new QueryAttributes(
-                        "capacity",
-                        "<",
-                        String.valueOf(requirements.maxCost())
-                ));
-            }
-
-
-
-            // other constraints
-            // - date
-            // - time
-        }
-
-        // Reuse the existing filtering logic in DroneService
-        return droneService.filterDroneAttributes(reqs);
+        return availabilityService.queryAvailableDrones(dispatches);
     }
-
 }

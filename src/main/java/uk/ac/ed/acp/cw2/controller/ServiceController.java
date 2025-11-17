@@ -21,10 +21,10 @@ public class ServiceController {
     private static final Logger logger = LoggerFactory.getLogger(ServiceController.class);
 
     private final String serviceUrl;
-    private final DroneService droneService;
+    private final DroneQueryService droneService;
 
 
-    public ServiceController(@Qualifier("endPoint") String endPoint, DroneService droneService) {
+    public ServiceController(@Qualifier("endPoint") String endPoint, DroneQueryService droneService) {
         this.serviceUrl = endPoint;
         this.droneService = droneService;
     }

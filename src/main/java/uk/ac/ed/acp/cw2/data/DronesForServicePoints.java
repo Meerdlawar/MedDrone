@@ -4,5 +4,5 @@ import java.util.List;
 
 public record DronesForServicePoints(
         int servicePointId,
-        List<ListDrones> drone
+        List<ListDrones> drones
 ) {}
