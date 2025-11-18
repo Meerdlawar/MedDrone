@@ -21,7 +21,7 @@ public class DroneStaticQueryController {
     }
 
     // Retrieves Json details about drones and checks if it matches the query
-    @GetMapping("droneswithCooling/{state}")
+    @GetMapping("dronesWithCooling/{state}")
     public int[] dronesWithCooling(@PathVariable boolean state) {
         List<DroneInfo> drones = droneService.fetchDrones();
         List<Integer> droneId = new ArrayList<>();

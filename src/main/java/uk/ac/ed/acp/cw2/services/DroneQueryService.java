@@ -62,45 +62,37 @@ public class DroneQueryService {
         String op   = r.operator();
         String val  = r.value();
 
-        switch (attr) {
-            case "cooling":
-                return compareBoolean(cap.cooling(), op, val);
-            case "heating":
-                return compareBoolean(cap.heating(), op, val);
-            case "capacity":
-                return compareDouble(cap.capacity(), op, val);
-            case "maxMoves":
-                return compareDouble(cap.maxMoves(), op, val);
-            case "costPerMove":
-                return compareDouble(cap.costPerMove(), op, val);
-            case "costInitial":
-                return compareDouble(cap.costInitial(), op, val);
-            case "costFinal":
-                return compareDouble(cap.costFinal(), op, val);
-            default:
-                throw new IllegalArgumentException("Unknown attribute: " + attr);
-        }
+        return switch (attr) {
+            case "cooling" -> compareBoolean(cap.cooling(), op, val);
+            case "heating" -> compareBoolean(cap.heating(), op, val);
+            case "capacity" -> compareDouble(cap.capacity(), op, val);
+            case "maxMoves" -> compareDouble(cap.maxMoves(), op, val);
+            case "costPerMove" -> compareDouble(cap.costPerMove(), op, val);
+            case "costInitial" -> compareDouble(cap.costInitial(), op, val);
+            case "costFinal" -> compareDouble(cap.costFinal(), op, val);
+            default -> throw new IllegalArgumentException("Unknown attribute: " + attr);
+        };
     }
 
     private boolean compareBoolean(boolean fieldValue, String operator, String value) {
         boolean v = Boolean.parseBoolean(value);
-        switch (operator) {
-            case "=":  return fieldValue == v;
-            case "!=": return fieldValue != v;
-            default:   throw new IllegalArgumentException(
+        return switch (operator) {
+            case "=" -> fieldValue == v;
+            case "!=" -> fieldValue != v;
+            default -> throw new IllegalArgumentException(
                     "Operator '" + operator + "' not supported for boolean");
-        }
+        };
     }
 
     private boolean compareDouble(double fieldValue, String operator, String value) {
         double v = Double.parseDouble(value);
-        switch (operator) {
-            case "=":  return fieldValue == v;
-            case "!=": return fieldValue != v;
-            case "<":  return fieldValue <  v;
-            case ">":  return fieldValue >  v;
-            default:   throw new IllegalArgumentException(
+        return switch (operator) {
+            case "=" -> fieldValue == v;
+            case "!=" -> fieldValue != v;
+            case "<" -> fieldValue < v;
+            case ">" -> fieldValue > v;
+            default -> throw new IllegalArgumentException(
                     "Operator '" + operator + "' not supported for numeric");
-        }
+        };
     }
 }

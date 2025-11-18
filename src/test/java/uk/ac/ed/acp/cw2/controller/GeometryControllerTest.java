@@ -16,8 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ExtendWith(SpringExtension.class)
 @WebMvcTest(GeometryController.class)
-@TestPropertySource(properties = { "endpoint=http://localhost:8080" })
-class GeometryControllerSpecWebTest {
+class GeometryControllerTest {
 
     @Autowired
     MockMvc mvc;
