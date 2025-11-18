@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import uk.ac.ed.acp.cw2.data.*;
+import uk.ac.ed.acp.cw2.dto.*;
 import uk.ac.ed.acp.cw2.services.*;
 import java.util.ArrayList;
 import java.util.List;

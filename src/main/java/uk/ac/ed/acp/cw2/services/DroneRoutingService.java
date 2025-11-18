@@ -3,9 +3,11 @@ package uk.ac.ed.acp.cw2.services;
 import org.springframework.stereotype.Service;
 
 @Service
-public class RoutingService {
+public class DroneRoutingService {
 
     public int[] AStarPathFinder() {
+        // List<nodes> openNodes;
+        // List<ndoes> closedNodes;
         return null;
     }
 

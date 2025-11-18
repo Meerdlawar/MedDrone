@@ -1,12 +1,12 @@
 package uk.ac.ed.acp.cw2.services;
 
 import org.springframework.stereotype.Service;
-import uk.ac.ed.acp.cw2.data.DispatchRequirements;
-import uk.ac.ed.acp.cw2.data.DroneAvailability;
-import uk.ac.ed.acp.cw2.data.DronesForServicePoints;
-import uk.ac.ed.acp.cw2.data.ListDrones;
-import uk.ac.ed.acp.cw2.data.MedDispatchRec;
-import uk.ac.ed.acp.cw2.data.QueryAttributes;
+import uk.ac.ed.acp.cw2.dto.DispatchRequirements;
+import uk.ac.ed.acp.cw2.dto.DroneAvailability;
+import uk.ac.ed.acp.cw2.dto.DronesForServicePoints;
+import uk.ac.ed.acp.cw2.dto.ListDrones;
+import uk.ac.ed.acp.cw2.dto.MedDispatchRec;
+import uk.ac.ed.acp.cw2.dto.QueryAttributes;
 
 import java.time.LocalDate;
 import java.time.LocalTime;

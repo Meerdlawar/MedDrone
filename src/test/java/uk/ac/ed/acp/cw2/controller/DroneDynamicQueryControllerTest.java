@@ -9,9 +9,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import uk.ac.ed.acp.cw2.data.DispatchRequirements;
-import uk.ac.ed.acp.cw2.data.LngLat;
-import uk.ac.ed.acp.cw2.data.MedDispatchRec;
+import uk.ac.ed.acp.cw2.dto.DispatchRequirements;
+import uk.ac.ed.acp.cw2.dto.LngLat;
+import uk.ac.ed.acp.cw2.dto.MedDispatchRec;
 import uk.ac.ed.acp.cw2.services.DroneAvailabilityService;
 import uk.ac.ed.acp.cw2.services.DroneQueryService;
 import java.time.LocalDate;
@@ -40,7 +40,7 @@ class DroneDynamicQueryControllerTest{
     private DroneAvailabilityService droneAvailabilityService;
 
     // -------------------------------------------------------------------------
-    // 4) /queryAvailableDrones (uses DroneAvailabilityService)
+    // 4) /queryAvailableDrones
     // -------------------------------------------------------------------------
 
     @Nested

@@ -1,4 +1,4 @@
-package uk.ac.ed.acp.cw2.data;
+package uk.ac.ed.acp.cw2.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotNull;

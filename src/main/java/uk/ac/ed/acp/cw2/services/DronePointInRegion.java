@@ -3,21 +3,19 @@ package uk.ac.ed.acp.cw2.services;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-import uk.ac.ed.acp.cw2.data.LngLat;
-
+import uk.ac.ed.acp.cw2.dto.LngLat;
 import java.awt.geom.Path2D;
 import java.util.List;
 import java.util.Objects;
 
 @Service
 // Point-in-polygon helper using Path2D (even-odd rule).
-public final class PointInRegion {
+public final class DronePointInRegion {
     // Very small geometric tolerance (in degrees) for border checks.
     // (Spec tolerates tiny floating errors)
     private static final double EPS = 1e-12;
 
-    private PointInRegion() {}
-
+    private DronePointInRegion() {}
 
 //      # Returns true if (lng,lat) is inside the closed polygon (including the border).
 //      # @param point query point
@@ -39,7 +37,7 @@ public final class PointInRegion {
 
         // Ray casting: Interior check with even-odd rule
         Path2D.Double path = new Path2D.Double(Path2D.WIND_EVEN_ODD);
-        LngLat first = vertices.get(0);
+        LngLat first = vertices.getFirst();
         path.moveTo(first.lng(), first.lat());
         for (int i = 1; i < vertices.size(); i++) {
             LngLat v = vertices.get(i);
@@ -55,8 +53,8 @@ public final class PointInRegion {
         if (vertices == null || vertices.size() < 4) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Region must be a closed polygon");
         }
-        LngLat first = vertices.get(0);
-        LngLat last  = vertices.get(vertices.size() - 1);
+        LngLat first = vertices.getFirst();
+        LngLat last  = vertices.getLast();
         if (!equalCoords(first, last)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Region must be closed (last vertex repeats first)");
         }
@@ -88,7 +86,7 @@ public final class PointInRegion {
         }
 
         // Check collinearity using cross-product
-        // Cross product: (B - A) × (P - A)
+        // Cross product: (B - A) x (P - A)
         // If cross-product is 0, points are collinear
         double crossProduct = (bx - ax) * (py - ay) - (by - ay) * (px - ax);
         double crossProductMagnitude = Math.abs(crossProduct);

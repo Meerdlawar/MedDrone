@@ -6,14 +6,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.*;
 import uk.ac.ed.acp.cw2.services.*;
 
-/**
- * Controller class that handles various HTTP endpoints for the application.
- * Provides functionality for serving the index page, retrieving a static UUID,
- * and managing key-value pairs through POST requests.
- */
-
-
-
 @RestController()
 @RequestMapping("/api/v1")
 public class ServiceController {
@@ -23,12 +15,10 @@ public class ServiceController {
     private final String serviceUrl;
     private final DroneQueryService droneService;
 
-
     public ServiceController(@Qualifier("endPoint") String endPoint, DroneQueryService droneService) {
         this.serviceUrl = endPoint;
         this.droneService = droneService;
     }
-
 
     @GetMapping("/")
     public String index() {

@@ -1,9 +1,11 @@
+
 package uk.ac.ed.acp.cw2.services;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
-import uk.ac.ed.acp.cw2.data.LngLat;
+import uk.ac.ed.acp.cw2.data.Directions.Direction16;
+import uk.ac.ed.acp.cw2.dto.LngLat;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -65,34 +67,34 @@ class DroneNavigationUnitTest {
     class DirectionAngleMappingTests {
         @Test
         void angle_direction_validMultiplesMapCorrectly() {
-            assertEquals(DroneNavigation.Direction16.E,   DroneNavigation.Direction16.angle_direction(0));
-            assertEquals(DroneNavigation.Direction16.ENE, DroneNavigation.Direction16.angle_direction(22.5));
-            assertEquals(DroneNavigation.Direction16.NE,  DroneNavigation.Direction16.angle_direction(45));
-            assertEquals(DroneNavigation.Direction16.NNE, DroneNavigation.Direction16.angle_direction(67.5));
-            assertEquals(DroneNavigation.Direction16.N,   DroneNavigation.Direction16.angle_direction(90));
-            assertEquals(DroneNavigation.Direction16.NNW, DroneNavigation.Direction16.angle_direction(112.5));
-            assertEquals(DroneNavigation.Direction16.NW,  DroneNavigation.Direction16.angle_direction(135));
-            assertEquals(DroneNavigation.Direction16.WNW, DroneNavigation.Direction16.angle_direction(157.5));
-            assertEquals(DroneNavigation.Direction16.W,   DroneNavigation.Direction16.angle_direction(180));
-            assertEquals(DroneNavigation.Direction16.WSW, DroneNavigation.Direction16.angle_direction(202.5));
-            assertEquals(DroneNavigation.Direction16.SW,  DroneNavigation.Direction16.angle_direction(225));
-            assertEquals(DroneNavigation.Direction16.SSW, DroneNavigation.Direction16.angle_direction(247.5));
-            assertEquals(DroneNavigation.Direction16.S,   DroneNavigation.Direction16.angle_direction(270));
-            assertEquals(DroneNavigation.Direction16.SSE, DroneNavigation.Direction16.angle_direction(292.5));
-            assertEquals(DroneNavigation.Direction16.SE,  DroneNavigation.Direction16.angle_direction(315));
-            assertEquals(DroneNavigation.Direction16.ESE, DroneNavigation.Direction16.angle_direction(337.5));
+            assertEquals(Direction16.E,   DroneNavigation.angleToDirection(0));
+            assertEquals(Direction16.ENE, DroneNavigation.angleToDirection(22.5));
+            assertEquals(Direction16.NE,  DroneNavigation.angleToDirection(45));
+            assertEquals(Direction16.NNE, DroneNavigation.angleToDirection(67.5));
+            assertEquals(Direction16.N,   DroneNavigation.angleToDirection(90));
+            assertEquals(Direction16.NNW, DroneNavigation.angleToDirection(112.5));
+            assertEquals(Direction16.NW,  DroneNavigation.angleToDirection(135));
+            assertEquals(Direction16.WNW, DroneNavigation.angleToDirection(157.5));
+            assertEquals(Direction16.W,   DroneNavigation.angleToDirection(180));
+            assertEquals(Direction16.WSW, DroneNavigation.angleToDirection(202.5));
+            assertEquals(Direction16.SW,  DroneNavigation.angleToDirection(225));
+            assertEquals(Direction16.SSW, DroneNavigation.angleToDirection(247.5));
+            assertEquals(Direction16.S,   DroneNavigation.angleToDirection(270));
+            assertEquals(Direction16.SSE, DroneNavigation.angleToDirection(292.5));
+            assertEquals(Direction16.SE,  DroneNavigation.angleToDirection(315));
+            assertEquals(Direction16.ESE, DroneNavigation.angleToDirection(337.5));
         }
 
         @Test
         void angle_direction_360WrapsToE() {
-            assertEquals(DroneNavigation.Direction16.E, DroneNavigation.Direction16.angle_direction(360));
+            assertEquals(Direction16.E, DroneNavigation.angleToDirection(360));
         }
 
         @Test
         void angle_direction_invalidAngles_throwBadRequest() {
-            assertThrows(ResponseStatusException.class, () -> DroneNavigation.Direction16.angle_direction(-0.1));
-            assertThrows(ResponseStatusException.class, () -> DroneNavigation.Direction16.angle_direction(361));
-            assertThrows(ResponseStatusException.class, () -> DroneNavigation.Direction16.angle_direction(15));
+            assertThrows(ResponseStatusException.class, () -> DroneNavigation.angleToDirection(-0.1));
+            assertThrows(ResponseStatusException.class, () -> DroneNavigation.angleToDirection(361));
+            assertThrows(ResponseStatusException.class, () -> DroneNavigation.angleToDirection(15));
         }
     }
 
@@ -103,29 +105,29 @@ class DroneNavigationUnitTest {
             var start = p(0, 0);
 
             // East (0°): +lng by STEP_SIZE, lat unchanged
-            var e = DroneNavigation.Direction16.E.stepFrom(start);
-            assertEquals(DroneNavigation.STEP_SIZE, e.lng(), 1e-12);
+            var e = DroneNavigation.stepFrom(start, Direction16.E);
+            assertEquals(0.00015, e.lng(), 1e-12);
             assertEquals(0.0, e.lat(), 1e-12);
-            assertEquals(DroneNavigation.STEP_SIZE, DroneNavigation.distance(start, e), 1e-12);
+            assertEquals(0.00015, DroneNavigation.distance(start, e), 1e-12);
 
             // North (90°): +lat by STEP_SIZE, lng unchanged
-            var n = DroneNavigation.Direction16.N.stepFrom(start);
+            var n = DroneNavigation.stepFrom(start, Direction16.N);
             assertEquals(0.0, n.lng(), 1e-12);
-            assertEquals(DroneNavigation.STEP_SIZE, n.lat(), 1e-12);
-            assertEquals(DroneNavigation.STEP_SIZE, DroneNavigation.distance(start, n), 1e-12);
+            assertEquals(0.00015, n.lat(), 1e-12);
+            assertEquals(0.00015, DroneNavigation.distance(start, n), 1e-12);
 
             // South-West (225°): distance is still STEP_SIZE
-            var sw = DroneNavigation.Direction16.SW.stepFrom(start);
-            assertEquals(DroneNavigation.STEP_SIZE, DroneNavigation.distance(start, sw), 1e-12);
+            var sw = DroneNavigation.stepFrom(start, Direction16.SW);
+            assertEquals(0.00015, DroneNavigation.distance(start, sw), 1e-12);
         }
 
         @Test
         void stepFrom_composedDistanceIndependentOfDirection() {
             var start = p(0.01, -0.02);
-            for (var dir : DroneNavigation.Direction16.values()) {
-                var nxt = dir.stepFrom(start);
+            for (var dir : Direction16.values()) {
+                var nxt = DroneNavigation.stepFrom(start, dir);
                 var d = DroneNavigation.distance(start, nxt);
-                assertEquals(DroneNavigation.STEP_SIZE, d, 1e-12);
+                assertEquals(0.00015, d, 1e-12);
             }
         }
     }

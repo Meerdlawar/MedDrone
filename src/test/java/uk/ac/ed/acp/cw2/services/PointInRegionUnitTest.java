@@ -2,7 +2,7 @@ package uk.ac.ed.acp.cw2.services;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
-import uk.ac.ed.acp.cw2.data.LngLat;
+import uk.ac.ed.acp.cw2.dto.LngLat;
 
 import java.util.List;
 
@@ -38,40 +38,40 @@ class PointInRegionUnitTest {
     @Test
     void insideRectangle_returnsTrue() {
         var verts = rectClosed();
-        assertTrue(PointInRegion.isInRegion(p(0, 0), verts));
-        assertTrue(PointInRegion.isInRegion(p(0.5, 0.5), verts));
-        assertTrue(PointInRegion.isInRegion(p(-0.99, 0.99), verts));
+        assertTrue(DronePointInRegion.isInRegion(p(0, 0), verts));
+        assertTrue(DronePointInRegion.isInRegion(p(0.5, 0.5), verts));
+        assertTrue(DronePointInRegion.isInRegion(p(-0.99, 0.99), verts));
     }
 
     @Test
     void outsideRectangle_returnsFalse() {
         var verts = rectClosed();
-        assertFalse(PointInRegion.isInRegion(p(2, 0), verts));
-        assertFalse(PointInRegion.isInRegion(p(0, 2), verts));
-        assertFalse(PointInRegion.isInRegion(p(-1.0000001, 0), verts));
-        assertFalse(PointInRegion.isInRegion(p(0, -1.0000001), verts));
+        assertFalse(DronePointInRegion.isInRegion(p(2, 0), verts));
+        assertFalse(DronePointInRegion.isInRegion(p(0, 2), verts));
+        assertFalse(DronePointInRegion.isInRegion(p(-1.0000001, 0), verts));
+        assertFalse(DronePointInRegion.isInRegion(p(0, -1.0000001), verts));
     }
 
     @Test
     void onEdge_countsAsInside() {
         var verts = rectClosed();
         // Middle of top edge y=1 from (-1,1) to (1,1)
-        assertTrue(PointInRegion.isInRegion(p(0, 1), verts));
+        assertTrue(DronePointInRegion.isInRegion(p(0, 1), verts));
         // Middle of left edge x=-1
-        assertTrue(PointInRegion.isInRegion(p(-1, 0), verts));
+        assertTrue(DronePointInRegion.isInRegion(p(-1, 0), verts));
         // Middle of bottom edge y=-1
-        assertTrue(PointInRegion.isInRegion(p(0, -1), verts));
+        assertTrue(DronePointInRegion.isInRegion(p(0, -1), verts));
         // Middle of right edge x=1
-        assertTrue(PointInRegion.isInRegion(p(1, 0), verts));
+        assertTrue(DronePointInRegion.isInRegion(p(1, 0), verts));
     }
 
     @Test
     void onVertex_countsAsInside() {
         var verts = rectClosed();
-        assertTrue(PointInRegion.isInRegion(p(-1, 1), verts));   // top-left
-        assertTrue(PointInRegion.isInRegion(p(1, 1), verts));    // top-right
-        assertTrue(PointInRegion.isInRegion(p(1, -1), verts));   // bottom-right
-        assertTrue(PointInRegion.isInRegion(p(-1, -1), verts));  // bottom-left
+        assertTrue(DronePointInRegion.isInRegion(p(-1, 1), verts));   // top-left
+        assertTrue(DronePointInRegion.isInRegion(p(1, 1), verts));    // top-right
+        assertTrue(DronePointInRegion.isInRegion(p(1, -1), verts));   // bottom-right
+        assertTrue(DronePointInRegion.isInRegion(p(-1, -1), verts));  // bottom-left
     }
 
     @Test
@@ -83,8 +83,8 @@ class PointInRegionUnitTest {
                 p(1, 2),
                 p(0, 0)
         );
-        assertTrue(PointInRegion.isInRegion(p(1, 0.5), tri));   // inside
-        assertFalse(PointInRegion.isInRegion(p(-0.1, 0.1), tri)); // outside
+        assertTrue(DronePointInRegion.isInRegion(p(1, 0.5), tri));   // inside
+        assertFalse(DronePointInRegion.isInRegion(p(-0.1, 0.1), tri)); // outside
 
 
         var concave = List.of(
@@ -94,14 +94,14 @@ class PointInRegionUnitTest {
                 p(0.5, 1),
                 p(0, 0)
         );
-        assertTrue(PointInRegion.isInRegion(p(0.9, 1), concave));   // inside
-        assertFalse(PointInRegion.isInRegion(p(1.5, 1.5), concave)); // outside (in the "dent")
+        assertTrue(DronePointInRegion.isInRegion(p(0.9, 1), concave));   // inside
+        assertFalse(DronePointInRegion.isInRegion(p(1.5, 1.5), concave)); // outside (in the "dent")
     }
 
     @Test
     void openPolygon_throwsBadRequest() {
         var ex = assertThrows(ResponseStatusException.class,
-                () -> PointInRegion.isInRegion(p(0, 0), rectOpen()));
+                () -> DronePointInRegion.isInRegion(p(0, 0), rectOpen()));
         assertEquals(400, ex.getStatusCode().value());
         assertTrue(ex.getReason().toLowerCase().contains("closed"));
     }
@@ -110,14 +110,14 @@ class PointInRegionUnitTest {
     void tooFewVertices_throwsBadRequest() {
         var tooFew = List.of(p(0,0), p(1,0), p(0,1)); // 3 points only
         var ex = assertThrows(ResponseStatusException.class,
-                () -> PointInRegion.isInRegion(p(0, 0), tooFew));
+                () -> DronePointInRegion.isInRegion(p(0, 0), tooFew));
         assertEquals(400, ex.getStatusCode().value());
     }
 
     @Test
     void nullVertices_throwsBadRequest() {
         var ex = assertThrows(ResponseStatusException.class,
-                () -> PointInRegion.isInRegion(p(0, 0), null));
+                () -> DronePointInRegion.isInRegion(p(0, 0), null));
         assertEquals(400, ex.getStatusCode().value());
     }
 

@@ -1,18 +1,18 @@
 package uk.ac.ed.acp.cw2.services;
 
-
-import java.lang.Math;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-import uk.ac.ed.acp.cw2.data.LngLat;
+import uk.ac.ed.acp.cw2.dto.LngLat;
+import static java.lang.Math.*;
+import static uk.ac.ed.acp.cw2.data.Directions.STEP_SIZE;
+import uk.ac.ed.acp.cw2.data.Directions.Direction16;
 
 @Service
 public class DroneNavigation {
 
-    /** Step length and “hit” radius from the spec */
-    public static final double STEP_SIZE = 0.00015; // Length of one move
-    public static final double CLOSE_RADIUS = 0.00015; // Threshold of how far the drone can be
+    // Step length and “hit” radius from the spec
+    public static final double CLOSE_RADIUS = 0.00015;
 
     public static double distance(LngLat a, LngLat b) {
         // returns the euclidian distance (pythagorean theorem)
@@ -24,32 +24,30 @@ public class DroneNavigation {
         return distance(a, b) < CLOSE_RADIUS;
     }
 
-
-    public enum Direction16 {
-        E(0), ENE(22.5), NE(45), NNE(67.5),
-        N(90), NNW(112.5), NW(135), WNW(157.5),
-        W(180), WSW(202.5), SW(225), SSW(247.5),
-        S(270), SSE(292.5), SE(315), ESE(337.5);
-
-        public final double bearingDeg;
-        Direction16(double bearingDeg) { this.bearingDeg = bearingDeg; }
-
-        public static Direction16 angle_direction(double bearingDeg) {
-            // filter invalid data
-            if (bearingDeg < 0 || bearingDeg > 360 || bearingDeg % 22.5 != 0) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Angle must be one of {0,22.5,45,...,337.5}");
-            }
-            double normVal = (bearingDeg % 360); // incase 360 is, input it would map to E(0)
-            int idx = (int) (normVal / 22.5) % 16;
-            return values()[idx];
+    // angle -> Direction16
+    public static Direction16 angleToDirection(double bearingDeg) {
+        if (bearingDeg < 0 || bearingDeg > 360 || bearingDeg % 22.5 != 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Angle must be one of {0,22.5,45,...,337.5}"
+            );
         }
+        double normVal = bearingDeg % 360;
+        int idx = (int) (normVal / 22.5) % Direction16.values().length;
+        return Direction16.values()[idx];
+    }
 
-        public LngLat stepFrom(LngLat start) {
-            double rad = Math.toRadians(bearingDeg);
-            double dx = Math.cos(rad) * STEP_SIZE;
-            double dy = Math.sin(rad) * STEP_SIZE;
-            return new LngLat(start.lng() + dx, start.lat() + dy);
-        }
+    // step from a point in a given direction
+    public static LngLat stepFrom(LngLat start, Direction16 direction) {
+        double rad = toRadians(direction.getBearingDeg());
+        double dx = cos(rad) * STEP_SIZE;
+        double dy = sin(rad) * STEP_SIZE;
+        return new LngLat(start.lng() + dx, start.lat() + dy);
+    }
+
+    // start + raw angle
+    public static LngLat nextPosition(LngLat start, double bearingDeg) {
+        Direction16 dir = angleToDirection(bearingDeg);
+        return stepFrom(start, dir);
     }
 }

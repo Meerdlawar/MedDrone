@@ -4,9 +4,9 @@ package uk.ac.ed.acp.cw2.services;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
-import uk.ac.ed.acp.cw2.data.DroneInfo;
-import uk.ac.ed.acp.cw2.data.DronesForServicePoints;
-import uk.ac.ed.acp.cw2.data.QueryAttributes;
+import uk.ac.ed.acp.cw2.dto.DroneInfo;
+import uk.ac.ed.acp.cw2.dto.DronesForServicePoints;
+import uk.ac.ed.acp.cw2.dto.QueryAttributes;
 
 import java.util.ArrayList;
 import java.util.List;

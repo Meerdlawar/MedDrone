@@ -1,11 +1,10 @@
 package uk.ac.ed.acp.cw2.controller;
 
 import org.springframework.web.bind.annotation.*;
-import uk.ac.ed.acp.cw2.data.MedDispatchRec;
-import uk.ac.ed.acp.cw2.data.QueryAttributes;
+import uk.ac.ed.acp.cw2.dto.MedDispatchRec;
+import uk.ac.ed.acp.cw2.dto.QueryAttributes;
 import uk.ac.ed.acp.cw2.services.DroneAvailabilityService;
 import uk.ac.ed.acp.cw2.services.DroneQueryService;
-
 import java.util.ArrayList;
 import java.util.List;
 
