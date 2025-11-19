@@ -10,7 +10,6 @@ import java.time.LocalTime;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record MedDispatchRec(
-
         // Required
         @NotNull
         Integer id,

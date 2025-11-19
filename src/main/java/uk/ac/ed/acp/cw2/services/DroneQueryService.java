@@ -7,6 +7,7 @@ import org.springframework.web.client.RestClient;
 import uk.ac.ed.acp.cw2.dto.DroneInfo;
 import uk.ac.ed.acp.cw2.dto.DronesForServicePoints;
 import uk.ac.ed.acp.cw2.dto.QueryAttributes;
+import uk.ac.ed.acp.cw2.dto.ServicePoints;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +37,14 @@ public class DroneQueryService {
     public List<DronesForServicePoints> fetchDroneAvailability() {
         return fetch(new ParameterizedTypeReference<>() {}, "/drones-for-service-points");
     }
+
+    public List<ServicePoints> fetchServicePoints() {
+        return fetch(new ParameterizedTypeReference<>() {}, "/service-points");
+    }
+
+//    public List<DronesForServicePoints> fetchDroneAvailability() {
+//        return fetch(new ParameterizedTypeReference<>() {}, "/drones-for-service-points");
+//    }
 
     public int[] filterDroneAttributes(List<QueryAttributes> reqs) {
         List<DroneInfo> drones = fetchDrones();

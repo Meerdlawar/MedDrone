@@ -31,9 +31,4 @@ public class DroneDynamicQueryController {
     public int[] query(@RequestBody List<QueryAttributes> reqs) {
         return droneService.filterDroneAttributes(reqs);
     }
-
-    @PostMapping("/queryAvailableDrones")
-    public int[] queryAvailableDrones(@RequestBody List<MedDispatchRec> dispatches) {
-        return availabilityService.queryAvailableDrones(dispatches);
-    }
 }

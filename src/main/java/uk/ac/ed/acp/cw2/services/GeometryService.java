@@ -9,7 +9,7 @@ import static uk.ac.ed.acp.cw2.data.Directions.STEP_SIZE;
 import uk.ac.ed.acp.cw2.data.Directions.Direction16;
 
 @Service
-public class DroneNavigation {
+public class GeometryService {
 
     // Step length and “hit” radius from the spec
     public static final double CLOSE_RADIUS = 0.00015;

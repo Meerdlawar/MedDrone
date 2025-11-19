@@ -1,49 +1,69 @@
 package uk.ac.ed.acp.cw2.services;
 
 import org.springframework.stereotype.Service;
+import uk.ac.ed.acp.cw2.data.Node;
+import uk.ac.ed.acp.cw2.dto.*;
+import java.util.*;
 
 @Service
 public class DroneRoutingService {
 
-    public int[] AStarPathFinder() {
-        // List<nodes> openNodes;
-        // List<ndoes> closedNodes;
+    private final DroneAvailabilityService availabilityService;
+    private final DroneQueryService droneQueryService;
+    public DroneRoutingService(DroneAvailabilityService availabilityService, DroneQueryService droneQueryService) {
+        this.availabilityService = availabilityService;
+        this.droneQueryService = droneQueryService;
+    }
+
+    // Function should receive a me
+    // A* Path finding algorithm
+    // f cost of each node will differ based on the cost of one move for a drone
+    public List<Node> pathFinder(List<MedDispatchRec> req) {
+        int[] availableDrones = availabilityService.queryAvailableDrones(req);
+        if (availableDrones.length == 0) {
+            return List.of(); // or throw, depending on spec
+        }
+
+        int[] cost; // cost of path for each drone
+
+        //open.add();
+        for (int drone: availableDrones) {
+            List<Node> open = new ArrayList<>(); // set of nodes to be evaluated
+            List<Node> closed = new ArrayList<>(); // set of nodes already evaluated
+            Node start = new Node(droneOrigin(drone));
+            open.add(start);
+        }
+
         return null;
     }
 
+    public LngLat droneOrigin(int suitableDrone) {
+        // fetch the "Drones for Service points" json
+        List<DronesForServicePoints> servicePoints = droneQueryService.fetchDroneAvailability();
+        // Goes through each service point
+        for (DronesForServicePoints servicePoint: servicePoints) {
+            // service point id
+            int servicePointId = servicePoint.servicePointId();
+            // list of drones for the respective service point
+            List<ListDrones> drones = servicePoint.drones();
+            // Check if the drone were looking up is stationed in the service point
+            // If stationed in the service point then return the service points LngLat
+            for (ListDrones drone: drones) {
+                if (drone.id() == suitableDrone) {
+                    return fetchServicePointLngLat(servicePointId);
+                }
+            }
+        }
+        return null;
+    }
 
-    // A* (star) Pathfinding
-// Initialize both open and closed list
-//    let the openList equal empty list of nodes
-//    let the closedList equal empty list of nodes
-//    // Add the start node
-//    put the startNode on the openList (leave it's f at zero)
-// Loop until you find the end
-//            while the openList is not empty
-//            // Get the current node
-//            let the currentNode equal the node with the least f value
-//            remove the currentNode from the openList
-//            add the currentNode to the closedList
-//            // Found the goal
-//            if currentNode is the goal
-//            Congratz! You've found the end! Backtrack to get path
-//            // Generate children
-//            let the children of the currentNode equal the adjacent nodes
-//
-//            for each child in the children
-//            // Child is on the closedList
-//            if child is in the closedList
-//            continue to beginning of for loop
-//            // Create the f, g, and h values
-//            child.g = currentNode.g + distance between child and current
-//            child.h = distance from child to end
-//            child.f = child.g + child.h
-//            // Child is already in openList
-//            if child.position is in the openList's nodes positions
-//            if the child.g is higher than the openList node's g
-//            continue to beginning of for loop
-//            // Add the child to the openList
-//            add the child to the openList
-
-
+    public LngLat fetchServicePointLngLat(int servicePointId) {
+        List<ServicePoints> servicePoints = droneQueryService.fetchServicePoints();
+        for (ServicePoints service : servicePoints) {
+            if (servicePointId == service.id()) {
+                return service.location();
+            }
+        }
+        return null;
+    }
 }

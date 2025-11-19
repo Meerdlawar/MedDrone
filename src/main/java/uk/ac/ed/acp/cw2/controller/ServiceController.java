@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.*;
-import uk.ac.ed.acp.cw2.services.*;
 
 @RestController()
 @RequestMapping("/api/v1")
@@ -13,11 +12,9 @@ public class ServiceController {
     private static final Logger logger = LoggerFactory.getLogger(ServiceController.class);
 
     private final String serviceUrl;
-    private final DroneQueryService droneService;
 
-    public ServiceController(@Qualifier("endPoint") String endPoint, DroneQueryService droneService) {
+    public ServiceController(@Qualifier("endPoint") String endPoint) {
         this.serviceUrl = endPoint;
-        this.droneService = droneService;
     }
 
     @GetMapping("/")

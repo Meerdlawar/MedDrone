@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 import uk.ac.ed.acp.cw2.dto.*;
 import uk.ac.ed.acp.cw2.services.*;
-import uk.ac.ed.acp.cw2.services.DroneNavigation;
+import uk.ac.ed.acp.cw2.services.GeometryService;
 
 @RestController()
 @RequestMapping("/api/v1")
@@ -16,17 +16,17 @@ public class GeometryController {
 
     @PostMapping("/distanceTo")
     public double distance(@Valid @RequestBody PosOnePosTwo req) {
-        return DroneNavigation.distance(req.position1(), req.position2());
+        return GeometryService.distance(req.position1(), req.position2());
     }
 
     @PostMapping("/isCloseTo")
     public boolean isCloseTo(@Valid @RequestBody PosOnePosTwo req) {
-        return DroneNavigation.isClose(req.position1(), req.position2());
+        return GeometryService.isClose(req.position1(), req.position2());
     }
 
     @PostMapping("/nextPosition")
     public LngLat nextPosition(@Valid @RequestBody NextPosition req) {
-        return DroneNavigation.nextPosition(req.start(), req.angle());
+        return GeometryService.nextPosition(req.start(), req.angle());
     }
 
     @PostMapping("/isInRegion")

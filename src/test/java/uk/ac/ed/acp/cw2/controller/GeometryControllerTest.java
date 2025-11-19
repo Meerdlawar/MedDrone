@@ -9,7 +9,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
-import uk.ac.ed.acp.cw2.services.DroneNavigation;
+import uk.ac.ed.acp.cw2.services.GeometryService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -26,7 +26,7 @@ class GeometryControllerTest {
     ObjectMapper mapper;
 
     @MockitoBean
-    DroneNavigation droneNavigation;
+    GeometryService droneNavigation;
 
     // ---------- distanceTo ----------
 

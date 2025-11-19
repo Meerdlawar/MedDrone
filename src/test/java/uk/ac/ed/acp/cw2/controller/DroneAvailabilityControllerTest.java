@@ -23,8 +23,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 
-@WebMvcTest(controllers = DroneDynamicQueryController.class)
-class DroneDynamicQueryControllerTest{
+@WebMvcTest(controllers = DroneAvailabilityController.class)
+class DroneAvailabilityControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
