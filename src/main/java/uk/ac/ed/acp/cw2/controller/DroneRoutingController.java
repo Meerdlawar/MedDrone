@@ -12,7 +12,7 @@ import java.util.List;
 public class DroneRoutingController {
 
     private final DroneRoutingService droneRoutingService;
-    private DroneRoutingController(DroneRoutingService droneRoutingService1) {
+    public DroneRoutingController(DroneRoutingService droneRoutingService1) {
         this.droneRoutingService = droneRoutingService1;
     }
 

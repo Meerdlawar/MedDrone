@@ -244,7 +244,7 @@ public class DroneRoutingService {
         }
 
         // hover (duplicate last point)
-        LngLat deliveryPos = outPath.get(outPath.size() - 1).getXy();
+        LngLat deliveryPos = outPath.getLast().getXy();
         flightPath.add(deliveryPos);
 
         // add return path, skipping first node (it's the delivery position again)
