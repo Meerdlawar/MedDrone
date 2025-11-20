@@ -13,10 +13,8 @@ import java.util.List;
 public class DroneDynamicQueryController {
 
     private final DroneQueryService droneService;
-    private final DroneAvailabilityService availabilityService;
-    public DroneDynamicQueryController(DroneQueryService droneService, DroneAvailabilityService availabilityService) {
+    public DroneDynamicQueryController(DroneQueryService droneService) {
         this.droneService = droneService;
-        this.availabilityService = availabilityService;
     }
 
     @GetMapping("/queryAsPath/{attributeName}/{attributeValue}")
