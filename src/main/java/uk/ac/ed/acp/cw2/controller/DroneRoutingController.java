@@ -3,6 +3,7 @@ package uk.ac.ed.acp.cw2.controller;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import uk.ac.ed.acp.cw2.dto.*;
+import uk.ac.ed.acp.cw2.services.DroneRoutingService;
 
 import java.util.List;
 
@@ -10,9 +11,14 @@ import java.util.List;
 @RequestMapping("/api/v1")
 public class DroneRoutingController {
 
+    private final DroneRoutingService droneRoutingService;
+    private DroneRoutingController(DroneRoutingService droneRoutingService1) {
+        this.droneRoutingService = droneRoutingService1;
+    }
+
     @PostMapping("/calcDeliveryPath")
-    public DeliveryPath calcDeliveryPath(@Valid @RequestBody List<MedDispatchRec> req) {
-        return null;
+    public DeliveryPlan calcDeliveryPath(@Valid @RequestBody List<MedDispatchRec> req) {
+        return droneRoutingService.calcDeliveryPlan(req);
     }
 
 }

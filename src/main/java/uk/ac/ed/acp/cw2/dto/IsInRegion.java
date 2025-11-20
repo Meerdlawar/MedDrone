@@ -5,4 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.Valid;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-    public record IsInRegion(@Valid @NotNull PositionRegion position, @Valid @NotNull Region region) {}
+    public record IsInRegion(
+            @Valid @NotNull PositionRegion position,
+            @Valid @NotNull Region region)
+{}

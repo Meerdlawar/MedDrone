@@ -4,13 +4,10 @@ package uk.ac.ed.acp.cw2.services;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
-import uk.ac.ed.acp.cw2.dto.DroneInfo;
-import uk.ac.ed.acp.cw2.dto.DronesForServicePoints;
-import uk.ac.ed.acp.cw2.dto.QueryAttributes;
-import uk.ac.ed.acp.cw2.dto.ServicePoints;
+import uk.ac.ed.acp.cw2.dto.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class DroneQueryService {
@@ -40,6 +37,10 @@ public class DroneQueryService {
 
     public List<ServicePoints> fetchServicePoints() {
         return fetch(new ParameterizedTypeReference<>() {}, "/service-points");
+    }
+
+    public List<RestrictedAreas> fetchRestrictedAreas() {
+        return fetch(new ParameterizedTypeReference<>() {}, "/restricted-areas");
     }
 
 //    public List<DronesForServicePoints> fetchDroneAvailability() {
@@ -104,4 +105,35 @@ public class DroneQueryService {
                     "Operator '" + operator + "' not supported for numeric");
         };
     }
+
+    public Map<Integer, LngLat> fetchDroneOriginLocations() {
+        List<ServicePoints> servicePoints = fetchServicePoints();
+        List<DronesForServicePoints> dronesForServicePoints = fetchDroneAvailability();
+
+        // map servicePointId -> LngLat
+        Map<Integer, LngLat> servicePointLocations = servicePoints.stream()
+                .collect(Collectors.toMap(ServicePoints::id, ServicePoints::location));
+
+        Map<Integer, LngLat> droneOriginMap = new HashMap<>();
+
+        for (DronesForServicePoints sp : dronesForServicePoints) {
+            LngLat location = servicePointLocations.get(sp.servicePointId());
+            if (location == null) {
+                // Inconsistent data – maybe log, but don't crash
+                continue;
+            }
+            for (ListDrones drone : sp.drones()) {
+                droneOriginMap.put(drone.id(), location);
+            }
+        }
+
+        return droneOriginMap;
+    }
+
+    public Optional<LngLat> fetchDroneOrigin(int droneId) {
+        Map<Integer, LngLat> origins = fetchDroneOriginLocations();
+        return Optional.ofNullable(origins.get(droneId));
+    }
+
+
 }
