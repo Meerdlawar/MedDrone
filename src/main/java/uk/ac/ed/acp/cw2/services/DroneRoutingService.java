@@ -390,6 +390,7 @@ public class DroneRoutingService {
                 fullPath.add(segment.get(i).getXy());
             }
             fullPath.add(target);
+            fullPath.add(target);
             hoverIndices.add(fullPath.size() - 1);
             current = target;
         }
