@@ -2,6 +2,12 @@ spring:
   application:
     name: IlpTutorial_1
 
+logging:
+  level:
+    uk.ac.ed.acp.cw2.services.DroneRoutingService: DEBUG
+    uk.ac.ed.acp.cw2: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 
 info:
   app:

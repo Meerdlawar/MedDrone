@@ -3,7 +3,6 @@ package uk.ac.ed.acp.cw2.services;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import uk.ac.ed.acp.cw2.data.Directions;
 import uk.ac.ed.acp.cw2.data.Node;
 import uk.ac.ed.acp.cw2.dto.*;
 
@@ -15,16 +14,14 @@ import static uk.ac.ed.acp.cw2.services.DronePointInRegion.isInRegion;
 @Service
 public class DroneRoutingService {
 
-    private static final Logger log = LoggerFactory.getLogger(DroneRoutingService.class);
+    private static final Logger logger = LoggerFactory.getLogger(DroneRoutingService.class);
+    private static final int MAX_PATHFINDING_ITERATIONS = 100000;
+    private static final long MAX_PATHFINDING_TIME_MS = 5000;
 
     private final DroneAvailabilityService availabilityService;
     private final DroneQueryService droneQueryService;
 
-    // Cache for paths to avoid recalculation
-    private final Map<String, List<Node>> pathCache = new HashMap<>();
-
-    // Cache restricted areas to avoid repeated API calls
-    private List<RestrictedAreas> restrictedAreasCache = null;
+    private List<RestrictedAreas> cachedRestrictedAreas = null;
 
     public DroneRoutingService(DroneAvailabilityService availabilityService,
                                DroneQueryService droneQueryService) {
@@ -34,157 +31,63 @@ public class DroneRoutingService {
 
     public Map<String, Object> calcDeliveryPathAsGeoJson(List<MedDispatchRec> req) {
         long startTime = System.currentTimeMillis();
-        log.info("=== calcDeliveryPathAsGeoJson START ===");
-        log.info("Processing {} deliveries", req.size());
+        logger.info("=== calcDeliveryPathAsGeoJson START ===");
+        logger.info("Number of orders: {}", req == null ? 0 : req.size());
 
-        pathCache.clear();
-        restrictedAreasCache = null;
+        cachedRestrictedAreas = null;
 
-        long t1 = System.currentTimeMillis();
-        int[] availableDrones = availabilityService.queryAvailableDrones(req);
-        log.info("Available drones query took {}ms, found {} drones",
-                System.currentTimeMillis() - t1, availableDrones.length);
-
-        if (availableDrones.length == 0) {
-            log.warn("No available drones found");
-            Map<String, Object> empty = new LinkedHashMap<>();
-            empty.put("type", "LineString");
-            empty.put("coordinates", List.of());
-            return empty;
+        if (req == null || req.isEmpty()) {
+            logger.info("No orders, returning empty GeoJSON");
+            return createEmptyGeoJson();
         }
 
-        long t2 = System.currentTimeMillis();
+        logger.info("Querying available drones...");
+        int[] availableDrones = availabilityService.queryAvailableDrones(req);
+        logger.info("Found {} available drones", availableDrones.length);
+
+        if (availableDrones.length == 0) {
+            logger.warn("No available drones found");
+            return createEmptyGeoJson();
+        }
+
         Map<Integer, LngLat> droneOrigins = droneQueryService.fetchDroneOriginLocations();
         List<DroneInfo> drones = droneQueryService.fetchDrones();
         Map<Integer, DroneCapability> capsById = drones.stream()
                 .collect(Collectors.toMap(DroneInfo::id, DroneInfo::capability));
-        log.info("Fetched drone data in {}ms", System.currentTimeMillis() - t2);
 
-        // Pre-cache restricted areas
-        long t3 = System.currentTimeMillis();
-        restrictedAreasCache = droneQueryService.fetchRestrictedAreas();
-        log.info("Fetched {} restricted areas in {}ms",
-                restrictedAreasCache.size(), System.currentTimeMillis() - t3);
+        cachedRestrictedAreas = droneQueryService.fetchRestrictedAreas();
+        logger.info("Fetched {} restricted areas", cachedRestrictedAreas.size());
 
-        double bestFlightCost = Double.POSITIVE_INFINITY;
-        List<LngLat> bestFlightPath = null;
-        int dronesTried = 0;
+        SingleFlightResult bestResult = null;
+        double bestCost = Double.POSITIVE_INFINITY;
 
         for (int droneId : availableDrones) {
-            dronesTried++;
-            long droneStart = System.currentTimeMillis();
-            log.debug("Trying drone {} ({}/{})", droneId, dronesTried, availableDrones.length);
+            logger.info("Trying drone {}", droneId);
 
             LngLat origin = droneOrigins.get(droneId);
-            if (origin == null) {
-                log.warn("No origin found for drone {}", droneId);
-                continue;
-            }
-
             DroneCapability caps = capsById.get(droneId);
-            if (caps == null) {
-                log.warn("No capability found for drone {}", droneId);
+
+            if (origin == null || caps == null) {
+                logger.warn("Drone {} missing data", droneId);
                 continue;
             }
 
-            List<LngLat> flightPath = new ArrayList<>();
-            flightPath.add(origin);
+            SingleFlightResult result = buildSimpleSingleFlight(origin, caps, req);
 
-            LngLat current = origin;
-            boolean feasible = true;
-
-            for (int i = 0; i < req.size(); i++) {
-                MedDispatchRec order = req.get(i);
-                LngLat target = order.delivery();
-                if (target == null) {
-                    log.warn("Delivery {} has no target location", order.id());
-                    feasible = false;
-                    break;
-                }
-
-                long pathStart = System.currentTimeMillis();
-                List<Node> legOut = findPathForDrone(current, target);
-                long pathTime = System.currentTimeMillis() - pathStart;
-
-                if (legOut.isEmpty()) {
-                    log.debug("No path found from {} to {} (took {}ms)", current, target, pathTime);
-                    feasible = false;
-                    break;
-                }
-
-                log.debug("Path {}->{} found in {}ms ({} nodes)",
-                        i, i+1, pathTime, legOut.size());
-
-                for (int j = 1; j < legOut.size(); j++) {
-                    flightPath.add(legOut.get(j).getXy());
-                }
-
-                // Hover at delivery
-                LngLat last = flightPath.get(flightPath.size() - 1);
-                flightPath.add(last);
-
-                current = last;
-            }
-
-            if (!feasible) {
-                log.debug("Drone {} not feasible for route", droneId);
-                continue;
-            }
-
-            // Return to origin
-            long returnStart = System.currentTimeMillis();
-            List<Node> legBack = findPathForDrone(current, origin);
-            log.debug("Return path took {}ms", System.currentTimeMillis() - returnStart);
-
-            if (legBack.isEmpty()) {
-                log.debug("Cannot return to origin for drone {}", droneId);
-                continue;
-            }
-
-            for (int i = 1; i < legBack.size(); i++) {
-                flightPath.add(legBack.get(i).getXy());
-            }
-
-            int moves = countMoves(flightPath);
-            if (moves > caps.maxMoves()) {
-                log.debug("Drone {} exceeds maxMoves: {} > {}", droneId, moves, caps.maxMoves());
-                continue;
-            }
-
-            double flightCost = caps.costInitial() + caps.costFinal() + moves * caps.costPerMove();
-
-            // Check maxCost constraint
-            double costPerDelivery = flightCost / req.size();
-            boolean exceedsMaxCost = false;
-            for (MedDispatchRec order : req) {
-                if (order.requirements() != null && order.requirements().maxCost() != null) {
-                    if (costPerDelivery > order.requirements().maxCost()) {
-                        log.debug("Drone {} exceeds maxCost for order {}: {} > {}",
-                                droneId, order.id(), costPerDelivery, order.requirements().maxCost());
-                        exceedsMaxCost = true;
-                        break;
-                    }
-                }
-            }
-            if (exceedsMaxCost) continue;
-
-            log.debug("Drone {} completed in {}ms: cost={}, moves={}",
-                    droneId, System.currentTimeMillis() - droneStart, flightCost, moves);
-
-            if (flightCost < bestFlightCost) {
-                bestFlightCost = flightCost;
-                bestFlightPath = flightPath;
-                log.info("New best: drone {} with cost {} and {} moves", droneId, flightCost, moves);
+            if (result != null && result.cost < bestCost) {
+                bestCost = result.cost;
+                bestResult = result;
+                logger.info("Drone {} feasible: cost={}, moves={}", droneId, result.cost, result.moves);
+                break;
             }
         }
 
-        if (bestFlightPath == null) {
-            log.error("No single-drone route found after trying {} drones", dronesTried);
-            throw new IllegalStateException(
-                    "No single-drone, single-flight route can deliver all orders");
+        if (bestResult == null) {
+            logger.error("No feasible route found - returning empty GeoJSON");
+            return createEmptyGeoJson(); // Return empty instead of throwing
         }
 
-        List<List<Double>> coordinates = bestFlightPath.stream()
+        List<List<Double>> coordinates = bestResult.fullPath.stream()
                 .map(p -> List.of(p.lng(), p.lat()))
                 .collect(Collectors.toList());
 
@@ -193,308 +96,448 @@ public class DroneRoutingService {
         geoJson.put("coordinates", coordinates);
 
         long totalTime = System.currentTimeMillis() - startTime;
-        log.info("=== calcDeliveryPathAsGeoJson COMPLETE in {}ms ===", totalTime);
-        log.info("Best cost: {}, total coordinates: {}", bestFlightCost, coordinates.size());
+        logger.info("=== calcDeliveryPathAsGeoJson END === Total time: {}ms", totalTime);
 
         return geoJson;
     }
 
     public DeliveryPlan calcDeliveryPlan(List<MedDispatchRec> req) {
         long startTime = System.currentTimeMillis();
-        log.info("=== calcDeliveryPlan START ===");
-        log.info("Processing {} deliveries", req.size());
+        logger.info("=== calcDeliveryPlan START ===");
+        logger.info("Number of orders: {}", req == null ? 0 : req.size());
 
-        pathCache.clear();
-        restrictedAreasCache = null;
+        cachedRestrictedAreas = null;
 
-        long t1 = System.currentTimeMillis();
-        int[] availableDrones = availabilityService.queryAvailableDrones(req);
-        log.info("Available drones query took {}ms, found {} drones",
-                System.currentTimeMillis() - t1, availableDrones.length);
-
-        if (availableDrones.length == 0) {
-            log.warn("No available drones found");
+        if (req == null || req.isEmpty()) {
+            logger.info("No orders, returning empty plan");
             return new DeliveryPlan(0.0, 0, List.of());
         }
 
-        long t2 = System.currentTimeMillis();
+        int[] availableDrones = availabilityService.queryAvailableDrones(req);
+        logger.info("Found {} available drones", availableDrones.length);
+
+        if (availableDrones.length == 0) {
+            logger.warn("No available drones found");
+            return new DeliveryPlan(0.0, 0, List.of());
+        }
+
         Map<Integer, LngLat> droneOrigins = droneQueryService.fetchDroneOriginLocations();
         List<DroneInfo> drones = droneQueryService.fetchDrones();
         Map<Integer, DroneCapability> capsById = drones.stream()
                 .collect(Collectors.toMap(DroneInfo::id, DroneInfo::capability));
-        log.info("Fetched drone data in {}ms", System.currentTimeMillis() - t2);
 
-        // Pre-cache restricted areas
-        long t3 = System.currentTimeMillis();
-        restrictedAreasCache = droneQueryService.fetchRestrictedAreas();
-        log.info("Fetched {} restricted areas in {}ms",
-                restrictedAreasCache.size(), System.currentTimeMillis() - t3);
+        cachedRestrictedAreas = droneQueryService.fetchRestrictedAreas();
+        logger.info("Fetched {} restricted areas", cachedRestrictedAreas.size());
 
-        Map<Integer, List<DeliveryPath>> deliveriesByDrone = new HashMap<>();
+        AllocationResult result = findOptimalAllocation(req, availableDrones, droneOrigins, capsById);
 
+        if (result == null) {
+            logger.error("Could not allocate all orders - returning empty plan");
+            return new DeliveryPlan(0.0, 0, List.of()); // Return empty instead of throwing
+        }
+
+        DeliveryPlan plan = result.toPlan();
+        long totalTime = System.currentTimeMillis() - startTime;
+        logger.info("=== calcDeliveryPlan END === Total: {}ms, cost={}, moves={}",
+                totalTime, plan.totalCost(), plan.totalMoves());
+
+        return plan;
+    }
+
+    // ==================== Helper Classes ====================
+
+    private static class SingleFlightResult {
+        List<MedDispatchRec> orderedDeliveries;
+        List<LngLat> fullPath;
+        int moves;
+        double cost;
+
+        SingleFlightResult(List<MedDispatchRec> orderedDeliveries, List<LngLat> fullPath,
+                           int moves, double cost) {
+            this.orderedDeliveries = orderedDeliveries;
+            this.fullPath = fullPath;
+            this.moves = moves;
+            this.cost = cost;
+        }
+    }
+
+    private static class AllocationResult {
+        Map<Integer, List<FlightInfo>> droneFlights = new HashMap<>();
         double totalCost = 0.0;
         int totalMoves = 0;
 
-        List<MedDispatchRec> remaining = new ArrayList<>(req);
-        int maxIterations = 100; // Reduced safety limit
-        int iterations = 0;
+        DeliveryPlan toPlan() {
+            List<DronePath> dronePaths = new ArrayList<>();
+            for (Map.Entry<Integer, List<FlightInfo>> entry : droneFlights.entrySet()) {
+                List<DeliveryPath> deliveries = new ArrayList<>();
+                for (FlightInfo flight : entry.getValue()) {
+                    deliveries.addAll(flight.toDeliveryPaths());
+                }
+                if (!deliveries.isEmpty()) {
+                    dronePaths.add(new DronePath(entry.getKey(), deliveries));
+                }
+            }
+            return new DeliveryPlan(totalCost, totalMoves, dronePaths);
+        }
+    }
 
-        while (!remaining.isEmpty() && iterations++ < maxIterations) {
-            log.info("Iteration {}: {} deliveries remaining", iterations, remaining.size());
-            boolean progressInThisRound = false;
+    private static class FlightInfo {
+        List<MedDispatchRec> orders;
+        List<LngLat> fullPath;
+        List<Integer> hoverIndices;
+        int moves;
+        double cost;
+
+        FlightInfo(List<MedDispatchRec> orders, List<LngLat> fullPath,
+                   List<Integer> hoverIndices, int moves, double cost) {
+            this.orders = new ArrayList<>(orders);
+            this.fullPath = new ArrayList<>(fullPath);
+            this.hoverIndices = new ArrayList<>(hoverIndices);
+            this.moves = moves;
+            this.cost = cost;
+        }
+
+        List<DeliveryPath> toDeliveryPaths() {
+            List<DeliveryPath> paths = new ArrayList<>();
+            for (int i = 0; i < orders.size(); i++) {
+                int startIdx = (i == 0) ? 0 : hoverIndices.get(i - 1);
+                int endIdx = (i == orders.size() - 1) ? fullPath.size() - 1 : hoverIndices.get(i);
+                List<LngLat> segment = new ArrayList<>(fullPath.subList(startIdx, endIdx + 1));
+                paths.add(new DeliveryPath(orders.get(i).id(), segment));
+            }
+            return paths;
+        }
+    }
+
+    // ==================== Simplified Building Methods ====================
+
+    private SingleFlightResult buildSimpleSingleFlight(
+            LngLat origin, DroneCapability caps, List<MedDispatchRec> orders) {
+
+        logger.debug("buildSimpleSingleFlight: {} orders", orders.size());
+
+        List<LngLat> fullPath = new ArrayList<>();
+        fullPath.add(origin);
+        LngLat current = origin;
+
+        for (MedDispatchRec order : orders) {
+            LngLat target = order.delivery();
+            if (target == null) {
+                logger.warn("Order {} has null delivery", order.id());
+                return null;
+            }
+
+            logger.debug("Finding path to order {}: {} -> {}", order.id(), current, target);
+            List<Node> segment = findPathForDroneWithTimeout(current, target);
+
+            if (segment.isEmpty()) {
+                logger.warn("No path found to order {}", order.id());
+                return null;
+            }
+
+            for (int i = 1; i < segment.size(); i++) {
+                fullPath.add(segment.get(i).getXy());
+            }
+            fullPath.add(target);
+            current = target;
+        }
+
+        logger.debug("Finding return path to origin");
+        List<Node> returnSegment = findPathForDroneWithTimeout(current, origin);
+        if (returnSegment.isEmpty()) {
+            logger.warn("No return path found");
+            return null;
+        }
+
+        for (int i = 1; i < returnSegment.size(); i++) {
+            fullPath.add(returnSegment.get(i).getXy());
+        }
+
+        int moves = countMoves(fullPath);
+        if (moves > caps.maxMoves()) {
+            logger.debug("Exceeds maxMoves: {} > {}", moves, caps.maxMoves());
+            return null;
+        }
+
+        double cost = caps.costInitial() + caps.costFinal() + moves * caps.costPerMove();
+        return new SingleFlightResult(new ArrayList<>(orders), fullPath, moves, cost);
+    }
+
+    private AllocationResult findOptimalAllocation(
+            List<MedDispatchRec> allOrders,
+            int[] availableDrones,
+            Map<Integer, LngLat> droneOrigins,
+            Map<Integer, DroneCapability> capsById) {
+
+        logger.info("findOptimalAllocation: {} orders, {} drones", allOrders.size(), availableDrones.length);
+
+        AllocationResult result = new AllocationResult();
+        List<MedDispatchRec> remaining = new ArrayList<>(allOrders);
+
+        int maxRounds = allOrders.size() + 5;
+        int round = 0;
+
+        while (!remaining.isEmpty() && round < maxRounds) {
+            round++;
+            logger.info("Round {}: {} orders remaining", round, remaining.size());
+            boolean progress = false;
 
             for (int droneId : availableDrones) {
                 if (remaining.isEmpty()) break;
 
                 LngLat origin = droneOrigins.get(droneId);
                 DroneCapability caps = capsById.get(droneId);
-                if (origin == null || caps == null) continue;
 
-                long flightStart = System.currentTimeMillis();
-                FlightPlan bestFlight = buildGreedyFlight(origin, caps, remaining);
-                long flightTime = System.currentTimeMillis() - flightStart;
-
-                if (bestFlight == null || bestFlight.deliveries().isEmpty()) {
-                    log.debug("Drone {} cannot handle any remaining deliveries", droneId);
+                if (origin == null || caps == null) {
+                    logger.warn("Drone {} missing data", droneId);
                     continue;
                 }
 
-                log.info("Drone {} flight planned in {}ms: {} deliveries, {} moves, cost={}",
-                        droneId, flightTime, bestFlight.deliveries().size(),
-                        bestFlight.moves(), bestFlight.cost());
+                logger.debug("Trying drone {} with {} remaining orders", droneId, remaining.size());
+                FlightInfo flight = buildBestFlightSimple(origin, caps, remaining);
 
-                progressInThisRound = true;
+                if (flight != null && !flight.orders.isEmpty()) {
+                    logger.info("Drone {} allocated {} orders", droneId, flight.orders.size());
 
-                totalMoves += bestFlight.moves();
-                totalCost += bestFlight.cost();
-
-                List<MedDispatchRec> flightOrders = bestFlight.deliveries();
-                List<LngLat> fullPath = bestFlight.fullPath();
-                List<Integer> hoverIndices = bestFlight.hoverIndices();
-
-                for (int i = 0; i < flightOrders.size(); i++) {
-                    int startIndex = (i == 0) ? 0 : hoverIndices.get(i - 1);
-                    int endIndex = (i == flightOrders.size() - 1)
-                            ? fullPath.size() - 1
-                            : hoverIndices.get(i);
-
-                    List<LngLat> segmentPath =
-                            new ArrayList<>(fullPath.subList(startIndex, endIndex + 1));
-
-                    MedDispatchRec order = flightOrders.get(i);
-                    DeliveryPath deliveryPath = new DeliveryPath(order.id(), segmentPath);
-
-                    deliveriesByDrone
-                            .computeIfAbsent(droneId, k -> new ArrayList<>())
-                            .add(deliveryPath);
+                    result.droneFlights.computeIfAbsent(droneId, k -> new ArrayList<>()).add(flight);
+                    result.totalCost += flight.cost;
+                    result.totalMoves += flight.moves;
+                    remaining.removeAll(flight.orders);
+                    progress = true;
                 }
-
-                remaining.removeAll(flightOrders);
-                log.info("Removed {} deliveries, {} remaining", flightOrders.size(), remaining.size());
             }
 
-            if (!progressInThisRound) {
-                log.error("No progress in iteration {}, {} deliveries stuck", iterations, remaining.size());
-                throw new IllegalStateException(
-                        "Unable to assign all orders to any available drone within maxMoves");
+            if (!progress) {
+                logger.error("No progress in round {}", round);
+                return null;
             }
         }
 
-        List<DronePath> dronePaths = new ArrayList<>();
-        for (Map.Entry<Integer, List<DeliveryPath>> entry : deliveriesByDrone.entrySet()) {
-            dronePaths.add(new DronePath(entry.getKey(), entry.getValue()));
-        }
-
-        long totalTime = System.currentTimeMillis() - startTime;
-        log.info("=== calcDeliveryPlan COMPLETE in {}ms ===", totalTime);
-        log.info("Total cost: {}, total moves: {}, drones used: {}",
-                totalCost, totalMoves, dronePaths.size());
-
-        return new DeliveryPlan(totalCost, totalMoves, dronePaths);
+        return remaining.isEmpty() ? result : null;
     }
 
-    /**
-     * Simplified greedy approach - builds flight by adding deliveries one at a time
-     */
-    private FlightPlan buildGreedyFlight(LngLat origin,
-                                         DroneCapability caps,
-                                         List<MedDispatchRec> remaining) {
-        log.debug("Building greedy flight from {} with {} remaining deliveries", origin, remaining.size());
+    private FlightInfo buildBestFlightSimple(
+            LngLat origin, DroneCapability caps, List<MedDispatchRec> available) {
 
-        List<MedDispatchRec> currentSequence = new ArrayList<>();
-        int checksPerformed = 0;
+        logger.debug("buildBestFlightSimple: {} available", available.size());
 
-        // Try adding deliveries one by one (greedy)
-        for (MedDispatchRec candidate : remaining) {
-            checksPerformed++;
-            List<MedDispatchRec> testSequence = new ArrayList<>(currentSequence);
-            testSequence.add(candidate);
+        if (available.isEmpty()) {
+            return null;
+        }
 
-            FlightPlan testPlan = buildFlightPlanForSequence(origin, testSequence, caps);
-            if (testPlan != null) {
-                currentSequence = testSequence;
-                log.debug("Added delivery {} to sequence ({} total)", candidate.id(), currentSequence.size());
+        List<MedDispatchRec> sorted = new ArrayList<>(available);
+        sorted.sort((a, b) -> {
+            double distA = a.delivery() != null ? GeometryService.distance(origin, a.delivery()) : Double.MAX_VALUE;
+            double distB = b.delivery() != null ? GeometryService.distance(origin, b.delivery()) : Double.MAX_VALUE;
+            return Double.compare(distA, distB);
+        });
+
+        List<MedDispatchRec> selected = new ArrayList<>();
+        double totalCapacity = 0.0;
+
+        for (MedDispatchRec order : sorted) {
+            if (order.delivery() == null) continue;
+
+            double reqCapacity = order.requirements().capacity();
+            if (totalCapacity + reqCapacity > caps.capacity()) {
+                logger.trace("Order {} would exceed capacity", order.id());
+                continue;
+            }
+
+            List<MedDispatchRec> test = new ArrayList<>(selected);
+            test.add(order);
+
+            FlightInfo testFlight = buildFlightInfoSimple(origin, caps, test);
+            if (testFlight != null) {
+                selected.add(order);
+                totalCapacity += reqCapacity;
+                logger.trace("Added order {}, total capacity now {}", order.id(), totalCapacity);
             } else {
-                log.debug("Cannot add delivery {} (would exceed constraints)", candidate.id());
+                logger.trace("Order {} not feasible (would exceed maxMoves)", order.id());
             }
         }
 
-        log.debug("Greedy flight built: {} deliveries after {} checks", currentSequence.size(), checksPerformed);
-        return buildFlightPlanForSequence(origin, currentSequence, caps);
+        if (selected.isEmpty()) {
+            logger.debug("No orders could be selected");
+            return null;
+        }
+
+        return buildFlightInfoSimple(origin, caps, selected);
     }
 
-    /**
-     * Build a full round-trip path with cost validation per delivery
-     */
-    private FlightPlan buildFlightPlanForSequence(LngLat origin,
-                                                  List<MedDispatchRec> sequence,
-                                                  DroneCapability caps) {
-        if (sequence.isEmpty()) return null;
+    private FlightInfo buildFlightInfoSimple(
+            LngLat origin, DroneCapability caps, List<MedDispatchRec> orders) {
+
+        logger.trace("buildFlightInfoSimple: {} orders", orders.size());
 
         List<LngLat> fullPath = new ArrayList<>();
         List<Integer> hoverIndices = new ArrayList<>();
-
         fullPath.add(origin);
         LngLat current = origin;
 
-        for (MedDispatchRec order : sequence) {
+        for (MedDispatchRec order : orders) {
             LngLat target = order.delivery();
-            if (target == null) return null;
 
-            List<Node> segment = findPathForDrone(current, target);
-            if (segment.isEmpty()) return null;
+            logger.trace("Pathfinding to order {}", order.id());
+            List<Node> segment = findPathForDroneWithTimeout(current, target);
+
+            if (segment.isEmpty()) {
+                logger.trace("No path to order {}", order.id());
+                return null;
+            }
 
             for (int i = 1; i < segment.size(); i++) {
                 fullPath.add(segment.get(i).getXy());
             }
-            current = target;
-
-            fullPath.add(current);
+            fullPath.add(target);
             hoverIndices.add(fullPath.size() - 1);
+            current = target;
         }
 
-        List<Node> backSegment = findPathForDrone(current, origin);
-        if (backSegment.isEmpty()) return null;
+        logger.trace("Pathfinding return to origin");
+        List<Node> returnSegment = findPathForDroneWithTimeout(current, origin);
+        if (returnSegment.isEmpty()) {
+            logger.trace("No return path");
+            return null;
+        }
 
-        for (int i = 1; i < backSegment.size(); i++) {
-            fullPath.add(backSegment.get(i).getXy());
+        for (int i = 1; i < returnSegment.size(); i++) {
+            fullPath.add(returnSegment.get(i).getXy());
         }
 
         int moves = countMoves(fullPath);
-        if (moves > caps.maxMoves()) return null;
-
-        double flightCost = caps.costInitial() + caps.costFinal() + moves * caps.costPerMove();
-
-        // Validate maxCost per delivery (pro-rata)
-        double costPerDelivery = flightCost / sequence.size();
-        for (MedDispatchRec order : sequence) {
-            if (order.requirements() != null && order.requirements().maxCost() != null) {
-                if (costPerDelivery > order.requirements().maxCost()) {
-                    return null;
-                }
-            }
+        if (moves > caps.maxMoves()) {
+            logger.trace("Exceeds maxMoves: {} > {}", moves, caps.maxMoves());
+            return null;
         }
 
-        return new FlightPlan(
-                new ArrayList<>(sequence),
-                new ArrayList<>(fullPath),
-                new ArrayList<>(hoverIndices),
-                moves,
-                flightCost
-        );
+        double cost = caps.costInitial() + caps.costFinal() + moves * caps.costPerMove();
+        return new FlightInfo(orders, fullPath, hoverIndices, moves, cost);
     }
 
-    private record FlightPlan(
-            List<MedDispatchRec> deliveries,
-            List<LngLat> fullPath,
-            List<Integer> hoverIndices,
-            int moves,
-            double cost
-    ) {}
+    // ==================== A* Pathfinding ====================
 
-    // ====================== OPTIMIZED A* search ======================
+    private List<Node> findPathForDroneWithTimeout(LngLat origin, LngLat target) {
+        long startTime = System.currentTimeMillis();
 
-    private List<Node> findPathForDrone(LngLat origin, LngLat target) {
-        // Check cache first
-        String cacheKey = positionKey(origin) + "->" + positionKey(target);
-        if (pathCache.containsKey(cacheKey)) {
-            log.trace("Cache hit for {}", cacheKey);
-            return new ArrayList<>(pathCache.get(cacheKey));
+        if (inRestrictedAreaCached(target)) {
+            logger.error("Target {} is in restricted area", target);
+            return List.of();
         }
 
-        long searchStart = System.currentTimeMillis();
+        if (inRestrictedAreaCached(origin)) {
+            logger.error("Origin {} is in restricted area", origin);
+            return List.of();
+        }
 
-        // Use HashMap for O(1) lookups instead of List
-        PriorityQueue<Node> openSet = new PriorityQueue<>(Comparator.comparingDouble(Node::getFCost));
-        Map<String, Node> openMap = new HashMap<>();
-        Map<String, Node> closedMap = new HashMap<>();
+        if (GeometryService.isClose(origin, target)) {
+            return List.of(new Node(origin, null, target));
+        }
 
-        Node start = new Node(origin, null, target);
-        openSet.add(start);
-        openMap.put(positionKey(origin), start);
+        double straightLineDist = GeometryService.distance(origin, target);
+        logger.debug("Pathfinding distance: {:.6f} degrees ({:.0f} min steps)",
+                straightLineDist, straightLineDist / 0.00015);
 
-        int maxIterations = 5000; // Further reduced for faster failure
+        PriorityQueue<Node> open = new PriorityQueue<>(Comparator.comparingDouble(Node::getFCost));
+        Set<String> openSet = new HashSet<>();
+        Set<String> closedSet = new HashSet<>();
+        Map<String, Node> allNodes = new HashMap<>();
+
+        Node startNode = new Node(origin, null, target);
+        String startKey = posKey(origin);
+        open.add(startNode);
+        openSet.add(startKey);
+        allNodes.put(startKey, startNode);
+
         int iterations = 0;
 
-        while (!openSet.isEmpty() && iterations++ < maxIterations) {
-            Node current = openSet.poll();
-            String currentKey = positionKey(current.getXy());
-            openMap.remove(currentKey);
+        while (!open.isEmpty() && iterations < MAX_PATHFINDING_ITERATIONS) {
+            iterations++;
+
+            if (iterations % 10000 == 0) {
+                Node peek = open.peek();
+                logger.debug("A* iteration {}: open={}, closed={}, best dist={:.6f}",
+                        iterations, openSet.size(), closedSet.size(),
+                        peek != null ? GeometryService.distance(peek.getXy(), target) : 0);
+            }
+
+            if (System.currentTimeMillis() - startTime > MAX_PATHFINDING_TIME_MS) {
+                logger.error("A* timeout after {}ms, {} iterations",
+                        System.currentTimeMillis() - startTime, iterations);
+                return List.of();
+            }
+
+            Node current = open.poll();
+            String currentKey = posKey(current.getXy());
+            openSet.remove(currentKey);
 
             if (GeometryService.isClose(current.getXy(), target)) {
                 List<Node> path = reconstructPath(current);
-                pathCache.put(cacheKey, path);
-                long searchTime = System.currentTimeMillis() - searchStart;
-                log.trace("Path found in {}ms after {} iterations", searchTime, iterations);
+                logger.debug("A* SUCCESS: {}ms, {} iterations, {} steps",
+                        System.currentTimeMillis() - startTime, iterations, path.size());
                 return path;
             }
 
-            closedMap.put(currentKey, current);
+            closedSet.add(currentKey);
 
-            for (Directions.Direction16 direction : Directions.Direction16.values()) {
-                LngLat nextPos = GeometryService.stepFrom(current.getXy(), direction);
-
-                if (inRestrictedArea(nextPos)) continue;
-
-                String nextKey = positionKey(nextPos);
-
-                Node closedNode = closedMap.get(nextKey);
-                if (closedNode != null && closedNode.getGCost() <= current.getGCost() + 1) {
+            for (Node neighbour : assignNeighbours(current, target)) {
+                if (inRestrictedAreaCached(neighbour.getXy())) {
                     continue;
                 }
 
-                Node neighbour = new Node(nextPos, current, target);
+                String neighbourKey = posKey(neighbour.getXy());
 
-                Node openNode = openMap.get(nextKey);
-                if (openNode == null) {
-                    openSet.add(neighbour);
-                    openMap.put(nextKey, neighbour);
-                } else if (neighbour.getGCost() < openNode.getGCost()) {
-                    openSet.remove(openNode);
-                    openNode.setGCost(neighbour.getGCost());
-                    openNode.setParent(current);
-                    openSet.add(openNode);
+                if (closedSet.contains(neighbourKey)) {
+                    continue;
+                }
+
+                Node existingNode = allNodes.get(neighbourKey);
+
+                if (existingNode == null) {
+                    open.add(neighbour);
+                    openSet.add(neighbourKey);
+                    allNodes.put(neighbourKey, neighbour);
+                } else if (neighbour.getGCost() < existingNode.getGCost()) {
+                    if (openSet.contains(neighbourKey)) {
+                        open.remove(existingNode);
+                    }
+
+                    existingNode.setGCost(neighbour.getGCost());
+                    existingNode.setParent(current);
+
+                    if (!openSet.contains(neighbourKey)) {
+                        open.add(existingNode);
+                        openSet.add(neighbourKey);
+                    }
                 }
             }
         }
 
-        long searchTime = System.currentTimeMillis() - searchStart;
-        log.warn("No path found from {} to {} after {}ms and {} iterations",
-                origin, target, searchTime, iterations);
+        logger.error("A* FAILED: {}ms, {} iterations (limit: {})",
+                System.currentTimeMillis() - startTime, iterations, MAX_PATHFINDING_ITERATIONS);
         return List.of();
     }
 
-    private String positionKey(LngLat pos) {
-        return String.format("%.6f,%.6f", pos.lng(), pos.lat());
+    private String posKey(LngLat pos) {
+        return String.format("%.9f,%.9f", pos.lng(), pos.lat());
     }
 
-    private boolean inRestrictedArea(LngLat point) {
-        // Use cached restricted areas
-        if (restrictedAreasCache == null) {
-            restrictedAreasCache = droneQueryService.fetchRestrictedAreas();
+    private List<Node> assignNeighbours(Node current, LngLat goal) {
+        List<Node> neighbours = new ArrayList<>(16);
+        for (uk.ac.ed.acp.cw2.data.Directions.Direction16 direction :
+                uk.ac.ed.acp.cw2.data.Directions.Direction16.values()) {
+            LngLat nextPos = GeometryService.stepFrom(current.getXy(), direction);
+            neighbours.add(new Node(nextPos, current, goal));
+        }
+        return neighbours;
+    }
+
+    private boolean inRestrictedAreaCached(LngLat point) {
+        if (cachedRestrictedAreas == null) {
+            cachedRestrictedAreas = droneQueryService.fetchRestrictedAreas();
         }
 
-        for (RestrictedAreas area : restrictedAreasCache) {
+        for (RestrictedAreas area : cachedRestrictedAreas) {
             if (isInRegion(point, area.vertices())) {
                 return true;
             }
@@ -521,5 +564,12 @@ public class DroneRoutingService {
             }
         }
         return moves;
+    }
+
+    private Map<String, Object> createEmptyGeoJson() {
+        Map<String, Object> empty = new LinkedHashMap<>();
+        empty.put("type", "LineString");
+        empty.put("coordinates", List.of());
+        return empty;
     }
 }
