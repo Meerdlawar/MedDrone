@@ -1,6 +1,5 @@
 package uk.ac.ed.acp.cw2.services;
 
-
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -20,11 +19,11 @@ public class DroneQueryService {
     }
 
     public <type> List<type> fetch(ParameterizedTypeReference<List<type>> typeRef, String path) {
-            return restClient
-                    .get()
-                    .uri(path)
-                    .retrieve()
-                    .body(typeRef);
+        return restClient
+                .get()
+                .uri(path)
+                .retrieve()
+                .body(typeRef);
     }
 
     public List<DroneInfo> fetchDrones() {
@@ -42,10 +41,6 @@ public class DroneQueryService {
     public List<RestrictedAreas> fetchRestrictedAreas() {
         return fetch(new ParameterizedTypeReference<>() {}, "/restricted-areas");
     }
-
-//    public List<DronesForServicePoints> fetchDroneAvailability() {
-//        return fetch(new ParameterizedTypeReference<>() {}, "/drones-for-service-points");
-//    }
 
     public int[] filterDroneAttributes(List<QueryAttributes> reqs) {
         List<DroneInfo> drones = fetchDrones();
@@ -97,12 +92,12 @@ public class DroneQueryService {
     private boolean compareDouble(double fieldValue, String operator, String value) {
         double v = Double.parseDouble(value);
         return switch (operator) {
-            case "=" -> fieldValue == v;
-            case "!=" -> fieldValue != v;
-            case "<=" -> fieldValue < v;
-            case ">=" -> fieldValue > v;
+            case "=" -> Math.abs(fieldValue - v) < 1e-9; // Use epsilon for floating point comparison
+            case "!=" -> Math.abs(fieldValue - v) >= 1e-9;
+            case "<" -> fieldValue < v;
+            case ">" -> fieldValue > v;
             default -> throw new IllegalArgumentException(
-                    "Operator '" + operator + "' not supported for numeric");
+                    "Operator '" + operator + "' not supported for numeric (use =, !=, <, >)");
         };
     }
 
@@ -110,7 +105,6 @@ public class DroneQueryService {
         List<ServicePoints> servicePoints = fetchServicePoints();
         List<DronesForServicePoints> dronesForServicePoints = fetchDroneAvailability();
 
-        // map servicePointId -> LngLat
         Map<Integer, LngLat> servicePointLocations = servicePoints.stream()
                 .collect(Collectors.toMap(ServicePoints::id, ServicePoints::location));
 
@@ -118,10 +112,8 @@ public class DroneQueryService {
 
         for (DronesForServicePoints sp : dronesForServicePoints) {
             LngLat location = servicePointLocations.get(sp.servicePointId());
-            if (location == null) {
-                // Inconsistent data – maybe log, but don't crash
-                continue;
-            }
+            if (location == null) continue;
+
             for (ListDrones drone : sp.drones()) {
                 droneOriginMap.put(drone.id(), location);
             }
@@ -134,6 +126,4 @@ public class DroneQueryService {
         Map<Integer, LngLat> origins = fetchDroneOriginLocations();
         return Optional.ofNullable(origins.get(droneId));
     }
-
-
 }

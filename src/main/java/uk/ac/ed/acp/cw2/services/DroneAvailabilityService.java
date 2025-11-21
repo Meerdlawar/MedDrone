@@ -46,7 +46,7 @@ public class DroneAvailabilityService {
         if (maxRequiredCapacity > 0) {
             reqs.add(new QueryAttributes(
                     "capacity",
-                    ">=",              // <-- important change from "="
+                    ">",              // <-- important change from "="
                     String.valueOf(maxRequiredCapacity)
             ));
         }
