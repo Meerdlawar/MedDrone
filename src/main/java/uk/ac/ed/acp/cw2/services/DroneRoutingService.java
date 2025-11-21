@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import uk.ac.ed.acp.cw2.data.Directions;
 import uk.ac.ed.acp.cw2.data.Node;
 import uk.ac.ed.acp.cw2.dto.*;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -11,6 +12,7 @@ import static uk.ac.ed.acp.cw2.services.DronePointInRegion.isInRegion;
 
 @Service
 public class DroneRoutingService {
+
 
     private final DroneAvailabilityService availabilityService;
     private final DroneQueryService droneQueryService;
@@ -21,13 +23,126 @@ public class DroneRoutingService {
         this.droneQueryService = droneQueryService;
     }
 
-    // Build a DeliveryPlan for the given MedDispatchRecs.
-    // Currently: one delivery per flight:
-    // ServicePoint -> delivery -> ServicePoint
-    // respecting maxMoves and using costInitial / costFinal / costPerMove.
+    public Map<String, Object> calcDeliveryPathAsGeoJson(List<MedDispatchRec> req) {
+        int[] availableDrones = availabilityService.queryAvailableDrones(req);
+
+        // If no drones are available, return an empty LineString (still valid GeoJSON)
+        if (availableDrones.length == 0) {
+            Map<String, Object> empty = new LinkedHashMap<>();
+            empty.put("type", "LineString");
+            empty.put("coordinates", List.of());
+            return empty;
+        }
+
+        // droneId -> starting LngLat (service point location)
+        Map<Integer, LngLat> droneOrigins = droneQueryService.fetchDroneOriginLocations();
+
+        // droneId -> capability (maxMoves, costPerMove, costInitial, costFinal, ...)
+        List<DroneInfo> drones = droneQueryService.fetchDrones();
+        Map<Integer, DroneCapability> capsById = drones.stream()
+                .collect(Collectors.toMap(DroneInfo::id, DroneInfo::capability));
+
+        double bestFlightCost = Double.POSITIVE_INFINITY;
+        List<LngLat> bestFlightPath = null;
+
+        // Try each available drone and see which can do ALL deliveries in ONE flight
+        // using the MedDispatchRec list order.
+        for (int droneId : availableDrones) {
+            LngLat origin = droneOrigins.get(droneId);
+            if (origin == null) {
+                continue;
+            }
+
+            DroneCapability caps = capsById.get(droneId);
+            if (caps == null) {
+                continue;
+            }
+
+            // Build one continuous flight path: origin -> d1 -> d2 -> ... -> origin
+            List<LngLat> flightPath = new ArrayList<>();
+            flightPath.add(origin);
+
+            LngLat current = origin;
+            boolean feasible = true;
+
+            // Visit deliveries in the order they are given
+            for (MedDispatchRec order : req) {
+                LngLat target = order.delivery();
+                if (target == null) {
+                    feasible = false;
+                    break;
+                }
+
+                List<Node> legOut = findPathForDrone(current, target);
+                if (legOut.isEmpty()) {
+                    feasible = false;
+                    break; // cannot reach this delivery
+                }
+
+                // Append outgoing leg, skipping the first node to avoid duplicate
+                for (int i = 1; i < legOut.size(); i++) {
+                    flightPath.add(legOut.get(i).getXy());
+                }
+
+                // Hover at delivery: duplicate last coordinate
+                LngLat last = flightPath.get(flightPath.size() - 1);
+                flightPath.add(last);
+
+                current = last; // continue from here
+            }
+
+            if (!feasible) {
+                continue;
+            }
+
+            // Finally, return to origin
+            List<Node> legBack = findPathForDrone(current, origin);
+            if (legBack.isEmpty()) {
+                continue; // can't get back to service point
+            }
+
+            for (int i = 1; i < legBack.size(); i++) {
+                flightPath.add(legBack.get(i).getXy());
+            }
+
+            // Check maxMoves
+            int moves = countMoves(flightPath);
+            if (moves > caps.maxMoves()) {
+                continue;
+            }
+
+            double flightCost = caps.costInitial()
+                    + caps.costFinal()
+                    + moves * caps.costPerMove();
+
+            if (flightCost < bestFlightCost) {
+                bestFlightCost = flightCost;
+                bestFlightPath = flightPath;
+            }
+        }
+
+        if (bestFlightPath == null) {
+            // According to the spec, this should not happen for this endpoint,
+            // but if it does, we fail loudly so it's visible during testing.
+            throw new IllegalStateException(
+                    "No single-drone, single-flight route can deliver all orders");
+        }
+
+        // Build GeoJSON LineString: [ [lng, lat], ... ]
+        List<List<Double>> coordinates = bestFlightPath.stream()
+                .map(p -> List.of(p.lng(), p.lat()))
+                .collect(Collectors.toList());
+
+        Map<String, Object> geoJson = new LinkedHashMap<>();
+        geoJson.put("type", "LineString");
+        geoJson.put("coordinates", coordinates);
+        return geoJson;
+    }
+
     public DeliveryPlan calcDeliveryPlan(List<MedDispatchRec> req) {
         int[] availableDrones = availabilityService.queryAvailableDrones(req);
         if (availableDrones.length == 0) {
+            // As per spec, all orders should be deliverable, but keep this safe-guard.
             return new DeliveryPlan(0.0, 0, List.of());
         }
 
@@ -39,83 +154,73 @@ public class DroneRoutingService {
         Map<Integer, DroneCapability> capsById = drones.stream()
                 .collect(Collectors.toMap(DroneInfo::id, DroneInfo::capability));
 
-        // droneId -> deliveries done by this drone
+        // droneId -> deliveries done by this drone (possibly several flights/strings)
         Map<Integer, List<DeliveryPath>> deliveriesByDrone = new HashMap<>();
 
         double totalCost = 0.0;
         int totalMoves = 0;
 
-        for (MedDispatchRec order : req) {
-            LngLat target = order.delivery();
+        // Orders we still have to allocate to some drone
+        List<MedDispatchRec> remaining = new ArrayList<>(req);
 
-            int bestDroneId = -1;
-            List<Node> bestOutPath = List.of();
-            List<Node> bestBackPath = List.of();
-            int bestMoves = Integer.MAX_VALUE;
-            double bestFlightCost = Double.POSITIVE_INFINITY;
+        // Keep allocating until all dispatches are assigned to a flight
+        while (!remaining.isEmpty()) {
+            boolean progressInThisRound = false;
 
-            // Find best drone (cheapest valid round trip SP -> delivery -> SP)
             for (int droneId : availableDrones) {
+                if (remaining.isEmpty()) {
+                    break;
+                }
+
                 LngLat origin = droneOrigins.get(droneId);
-                if (origin == null) {
-                    continue; // no origin for this drone
-                }
-
                 DroneCapability caps = capsById.get(droneId);
-                if (caps == null) {
-                    continue; // no capability info → skip
-                }
-
-                List<Node> outPath = findPathForDrone(origin, target);
-                if (outPath.isEmpty()) {
-                    continue; // unreachable
-                }
-
-                List<Node> backPath = findPathForDrone(target, origin);
-                if (backPath.isEmpty()) {
-                    continue; // can't get back to service point
-                }
-
-                // Build full round trip path to evaluate moves and cost
-                List<LngLat> candidateFlightPath = buildRoundTripFlightPath(outPath, backPath);
-                int moves = countMoves(candidateFlightPath);
-
-                // Respect maxMoves (battery) per flight
-                if (moves > caps.maxMoves()) {
+                if (origin == null || caps == null) {
                     continue;
                 }
 
-                // Monetary cost according to spec:
-                // costInitial + costFinal + moves * costPerMove
-                double flightCost = caps.costInitial()
-                        + caps.costFinal()
-                        + moves * caps.costPerMove();
-
-                if (flightCost < bestFlightCost) {
-                    bestFlightCost = flightCost;
-                    bestDroneId = droneId;
-                    bestOutPath = outPath;
-                    bestBackPath = backPath;
-                    bestMoves = moves;
+                // Try to create the best (largest) multi-delivery flight for this drone
+                FlightPlan bestFlight = buildBestFlightForDrone(origin, caps, remaining);
+                if (bestFlight == null || bestFlight.deliveries().isEmpty()) {
+                    continue;
                 }
+
+                progressInThisRound = true;
+
+                // Add cost and moves for this flight
+                totalMoves += bestFlight.moves();
+                totalCost += bestFlight.cost();
+
+                // Convert the flight’s global path into per-delivery segments
+                List<MedDispatchRec> flightOrders = bestFlight.deliveries();
+                List<LngLat> fullPath = bestFlight.fullPath();
+                List<Integer> hoverIndices = bestFlight.hoverIndices();
+
+                for (int i = 0; i < flightOrders.size(); i++) {
+                    int startIndex = (i == 0) ? 0 : hoverIndices.get(i - 1);
+                    int endIndex = (i == flightOrders.size() - 1)
+                            ? fullPath.size() - 1
+                            : hoverIndices.get(i);
+
+                    List<LngLat> segmentPath =
+                            new ArrayList<>(fullPath.subList(startIndex, endIndex + 1));
+
+                    MedDispatchRec order = flightOrders.get(i);
+                    DeliveryPath deliveryPath = new DeliveryPath(order.id(), segmentPath);
+
+                    deliveriesByDrone
+                            .computeIfAbsent(droneId, k -> new ArrayList<>())
+                            .add(deliveryPath);
+                }
+
+                // Remove all deliveries of this flight from the global remaining list
+                remaining.removeAll(flightOrders);
             }
 
-            if (bestDroneId == -1) {
-                // Spec says all orders can and must be delivered, so if this ever happens
-                // something in data or logic is badly wrong.
+            if (!progressInThisRound) {
+                // We got stuck: some orders cannot be assigned to any drone within constraints
                 throw new IllegalStateException(
-                        "No available drone can deliver order " + order.id());
+                        "Unable to assign all orders to any available drone within maxMoves");
             }
-
-            // Build final flightPath for the chosen drone
-            List<LngLat> flightPath = buildRoundTripFlightPath(bestOutPath, bestBackPath);
-
-            totalCost += bestFlightCost;
-            totalMoves += bestMoves;
-
-            deliveriesByDrone
-                    .computeIfAbsent(bestDroneId, k -> new ArrayList<>())
-                    .add(new DeliveryPath(order.id(), flightPath));
         }
 
         // Build DronePath list from the map
@@ -126,6 +231,131 @@ public class DroneRoutingService {
 
         return new DeliveryPlan(totalCost, totalMoves, dronePaths);
     }
+
+
+    private FlightPlan buildBestFlightForDrone(LngLat origin,
+                                               DroneCapability caps,
+                                               List<MedDispatchRec> remaining) {
+
+        FlightPlan bestSoFar = null;
+        List<MedDispatchRec> currentSequence = new ArrayList<>();
+
+        while (true) {
+            FlightPlan bestExtensionThisRound = null;
+
+            for (MedDispatchRec candidate : remaining) {
+                if (currentSequence.contains(candidate)) {
+                    continue;
+                }
+
+                List<MedDispatchRec> tentativeSeq = new ArrayList<>(currentSequence);
+                tentativeSeq.add(candidate);
+
+                FlightPlan tentativePlan = buildFlightPlanForSequence(origin, tentativeSeq, caps);
+                if (tentativePlan == null) {
+                    continue; // unreachable or exceeds maxMoves (or maxCost if you check it)
+                }
+
+                if (bestExtensionThisRound == null
+                        || tentativePlan.deliveries().size() > bestExtensionThisRound.deliveries().size()
+                        || (tentativePlan.deliveries().size() == bestExtensionThisRound.deliveries().size()
+                        && tentativePlan.moves() < bestExtensionThisRound.moves())) {
+                    bestExtensionThisRound = tentativePlan;
+                }
+            }
+
+            if (bestExtensionThisRound == null) {
+                // No further extension possible
+                break;
+            }
+
+            bestSoFar = bestExtensionThisRound;
+            currentSequence = bestExtensionThisRound.deliveries();
+        }
+
+        return bestSoFar;
+    }
+
+
+//     Build a full round-trip path for a given ordered list of deliveries:
+//
+//     origin -> d1 -> d1(hover) -> d2 -> d2(hover) -> ... -> dn -> dn(hover) -> origin
+//
+//     Returns null if any leg is unreachable or if overall moves > maxMoves.
+//     Also computes the total cost for this flight.
+    private FlightPlan buildFlightPlanForSequence(LngLat origin,
+                                                  List<MedDispatchRec> sequence,
+                                                  DroneCapability caps) {
+        if (sequence.isEmpty()) {
+            return null;
+        }
+
+        List<LngLat> fullPath = new ArrayList<>();
+        List<Integer> hoverIndices = new ArrayList<>();
+
+        fullPath.add(origin);
+        LngLat current = origin;
+
+        // Visit all deliveries in the given order
+        for (MedDispatchRec order : sequence) {
+            LngLat target = order.delivery();
+
+            List<Node> segment = findPathForDrone(current, target);
+            if (segment.isEmpty()) {
+                return null; // unreachable
+            }
+
+            // Append segment (skip first node to avoid duplicating current position)
+            for (int i = 1; i < segment.size(); i++) {
+                fullPath.add(segment.get(i).getXy());
+            }
+            current = target;
+
+            // Hover at the delivery point (two identical consecutive entries)
+            fullPath.add(current);
+            hoverIndices.add(fullPath.size() - 1);
+        }
+
+        // Return from last delivery to origin
+        List<Node> backSegment = findPathForDrone(current, origin);
+        if (backSegment.isEmpty()) {
+            return null;
+        }
+        for (int i = 1; i < backSegment.size(); i++) {
+            fullPath.add(backSegment.get(i).getXy());
+        }
+
+        int moves = countMoves(fullPath);
+        if (moves > caps.maxMoves()) {
+            return null;
+        }
+
+        double flightCost = caps.costInitial()
+                + caps.costFinal()
+                + moves * caps.costPerMove();
+
+
+        // Make defensive copies for safety
+        return new FlightPlan(
+                new ArrayList<>(sequence),
+                new ArrayList<>(fullPath),
+                new ArrayList<>(hoverIndices),
+                moves,
+                flightCost
+        );
+    }
+
+    // Small internal record to describe a single flight (possibly multiple deliveries).
+    private record FlightPlan(
+            List<MedDispatchRec> deliveries,
+            List<LngLat> fullPath,
+            List<Integer> hoverIndices,
+            int moves,
+            double cost
+    ) {
+    }
+
+    // ====================== A* search and helpers ======================
 
     // A* search for a single origin -> target.
     private List<Node> findPathForDrone(LngLat origin, LngLat target) {
@@ -223,36 +453,6 @@ public class DroneRoutingService {
             }
         }
         return null;
-    }
-
-
-    // Build a flightPath for:
-    //   ServicePoint -> delivery (outPath)
-    //   hover at delivery (duplicate point)
-    //   delivery -> ServicePoint (backPath)
-
-    private List<LngLat> buildRoundTripFlightPath(List<Node> outPath, List<Node> backPath) {
-        List<LngLat> flightPath = new ArrayList<>();
-
-        if (outPath.isEmpty() || backPath.isEmpty()) {
-            return flightPath;
-        }
-
-        // add outbound path
-        for (Node n : outPath) {
-            flightPath.add(n.getXy());
-        }
-
-        // hover (duplicate last point)
-        LngLat deliveryPos = outPath.getLast().getXy();
-        flightPath.add(deliveryPos);
-
-        // add return path, skipping first node (it's the delivery position again)
-        for (int i = 1; i < backPath.size(); i++) {
-            flightPath.add(backPath.get(i).getXy());
-        }
-
-        return flightPath;
     }
 
     // Count moves as transitions between different coordinates.

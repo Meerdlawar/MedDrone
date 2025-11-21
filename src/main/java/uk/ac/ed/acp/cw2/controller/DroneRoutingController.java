@@ -4,8 +4,8 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import uk.ac.ed.acp.cw2.dto.*;
 import uk.ac.ed.acp.cw2.services.DroneRoutingService;
-
 import java.util.List;
+import java.util.Map;
 
 @RestController()
 @RequestMapping("/api/v1")
@@ -21,4 +21,8 @@ public class DroneRoutingController {
         return droneRoutingService.calcDeliveryPlan(req);
     }
 
+    @PostMapping("/calcDeliveryPathAsGeoJson")
+    public Map<String, Object> calcDeliveryPathAsGeoJson(@Valid @RequestBody List<MedDispatchRec> req) {
+        return droneRoutingService.calcDeliveryPathAsGeoJson(req);
+    }
 }

@@ -99,8 +99,8 @@ public class DroneQueryService {
         return switch (operator) {
             case "=" -> fieldValue == v;
             case "!=" -> fieldValue != v;
-            case "<" -> fieldValue < v;
-            case ">" -> fieldValue > v;
+            case "<=" -> fieldValue < v;
+            case ">=" -> fieldValue > v;
             default -> throw new IllegalArgumentException(
                     "Operator '" + operator + "' not supported for numeric");
         };

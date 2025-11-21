@@ -21,43 +21,49 @@ public class DroneAvailabilityService {
         this.droneService = droneService;
     }
 
-    /**
-     * Returns all drone IDs that can satisfy ALL dispatches
-     * (requirements AND date/time availability).
-     */
+
     public int[] queryAvailableDrones(List<MedDispatchRec> dispatches) {
         if (dispatches == null || dispatches.isEmpty()) {
             return new int[0];
         }
 
-        // 1) Build combined attribute constraints (AND across all dispatches)
-        List<QueryAttributes> reqs = new ArrayList<>();
+        double maxRequiredCapacity = 0.0;
+        boolean needsCooling = false;
+        boolean needsHeating = false;
+
         for (MedDispatchRec dispatch : dispatches) {
             DispatchRequirements r = dispatch.requirements();
             if (r == null) continue;
 
-            // capacity
-            reqs.add(new QueryAttributes(
-                    "capacity",
-                    "=",
-                    String.valueOf(r.capacity())
-            ));
-
-            if (r.cooling()) {
-                reqs.add(new QueryAttributes("cooling", "=", "true"));
-            }
-            if (r.heating()) {
-                reqs.add(new QueryAttributes("heating", "=", "true"));
-            }
+            maxRequiredCapacity = Math.max(maxRequiredCapacity, r.capacity());
+            if (r.cooling()) needsCooling = true;
+            if (r.heating()) needsHeating = true;
         }
 
-        // 2) Filter drones by capabilities/attributes (one big AND)
+        List<QueryAttributes> reqs = new ArrayList<>();
+
+        // Capacity >= maxRequiredCapacity (adjust operator string to whatever ILP expects)
+        if (maxRequiredCapacity > 0) {
+            reqs.add(new QueryAttributes(
+                    "capacity",
+                    ">=",              // <-- important change from "="
+                    String.valueOf(maxRequiredCapacity)
+            ));
+        }
+
+        if (needsCooling) {
+            reqs.add(new QueryAttributes("cooling", "=", "true"));
+        }
+        if (needsHeating) {
+            reqs.add(new QueryAttributes("heating", "=", "true"));
+        }
+
         int[] attributeMatched = droneService.filterDroneAttributes(reqs);
         if (attributeMatched.length == 0) {
             return new int[0];
         }
 
-        // 3) Further filter by date and time availability
+        // Filter by availability as you already do
         return filterByAvailability(attributeMatched, dispatches);
     }
 
