@@ -15,12 +15,16 @@ import static uk.ac.ed.acp.cw2.services.DronePointInRegion.isInRegion;
 public class DroneRoutingService {
 
     private static final Logger logger = LoggerFactory.getLogger(DroneRoutingService.class);
+    // Safety limits to prevent infinite loops in pathfinding
+    // So that I know the algorithm is broken
     private static final int MAX_PATHFINDING_ITERATIONS = 100000;
     private static final long MAX_PATHFINDING_TIME_MS = 5000;
 
+    // Service dependencies
     private final DroneAvailabilityService availabilityService;
     private final DroneQueryService droneQueryService;
 
+    // Cache restricted areas to avoid repeated fetches during pathfinding
     private List<RestrictedAreas> cachedRestrictedAreas = null;
 
     public DroneRoutingService(DroneAvailabilityService availabilityService,
@@ -32,7 +36,7 @@ public class DroneRoutingService {
     public Map<String, Object> calcDeliveryPathAsGeoJson(List<MedDispatchRec> req) {
         long startTime = System.currentTimeMillis();
         logger.info("=== calcDeliveryPathAsGeoJson START ===");
-        logger.info("Number of orders: {}", req == null ? 0 : req.size());
+        logger.info("Number of orders: {}", Objects.requireNonNullElse(req, Collections.emptyList()).size());
 
         cachedRestrictedAreas = null;
 
