@@ -1,6 +1,14 @@
 spring:
   application:
-    name: IlpTutorial_1
+    name: ILP_CW
+  graphql:
+    graphiql:
+      enabled: true
+      path: /graphiql
+    path: /graphql
+    schema:
+      printer:
+        enabled: true
 
 logging:
   level:

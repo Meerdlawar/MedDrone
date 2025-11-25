@@ -1,0 +1,118 @@
+# GraphQL Schema for ILP Drone Query API
+
+type Query {
+    # Query drones with filters
+    drones(
+        filters: DroneFilters
+        orderBy: OrderBy
+        limit: Int
+    ): [Drone!]!
+
+    # Get a specific drone by ID
+    drone(id: Int!): Drone
+
+    # Query service points
+    servicePoints(near: LocationInput): [ServicePoint!]!
+}
+
+# Drone type
+type Drone {
+    id: Int!
+    name: String!
+    capability: DroneCapability!
+    currentServicePoint: ServicePoint
+    availability: [DroneAvailability!]!
+    estimatedCost(distance: Int!): Float
+}
+
+# Drone capability
+type DroneCapability {
+    cooling: Boolean!
+    heating: Boolean!
+    capacity: Float!
+    maxMoves: Float!
+    costPerMove: Float!
+    costInitial: Float!
+    costFinal: Float!
+}
+
+# Drone availability
+type DroneAvailability {
+    dayOfWeek: String!
+    from: String!
+    until: String!
+}
+
+# Service point
+type ServicePoint {
+    id: Int!
+    name: String!
+    location: Location!
+    availableDrones(time: String): [Drone!]!
+}
+
+# Location
+type Location {
+    lng: Float!
+    lat: Float!
+}
+
+# Input types for filtering
+input DroneFilters {
+    availability: AvailabilityFilter
+    capability: CapabilityFilter
+    cost: CostFilter
+}
+
+input AvailabilityFilter {
+    dayOfWeek: DayOfWeek
+    time: String
+}
+
+input CapabilityFilter {
+    minCapacity: Float
+    maxCapacity: Float
+    cooling: Boolean
+    heating: Boolean
+}
+
+input CostFilter {
+    maxCostPerMove: Float
+    maxCostInitial: Float
+    maxCostFinal: Float
+}
+
+input OrderBy {
+    field: OrderField!
+    direction: OrderDirection!
+}
+
+input LocationInput {
+    lat: Float!
+    lng: Float!
+    radiusDegrees: Float
+}
+
+# Enums
+enum DayOfWeek {
+    MONDAY
+    TUESDAY
+    WEDNESDAY
+    THURSDAY
+    FRIDAY
+    SATURDAY
+    SUNDAY
+}
+
+enum OrderField {
+    COST_PER_MOVE
+    COST_INITIAL
+    COST_FINAL
+    CAPACITY
+    MAX_MOVES
+}
+
+enum OrderDirection {
+    ASC
+    DESC
+}
