@@ -26,8 +26,8 @@ public class DroneQueryResolver {
 
     @QueryMapping
     public List<DroneInfo> drones(
-            @Argument DroneFiltersInput filters,
-            @Argument OrderByInput orderBy,
+            @Argument DroneFilters filters,
+            @Argument OrderBy orderBy,
             @Argument Integer limit) {
 
         // Fetch all drones
@@ -60,7 +60,7 @@ public class DroneQueryResolver {
     }
 
     @QueryMapping
-    public List<ServicePoints> servicePoints(@Argument LocationInput near) {
+    public List<ServicePoints> servicePoints(@Argument Location near) {
         List<ServicePoints> allServicePoints = droneQueryService.fetchServicePoints();
 
         if (near == null) {
@@ -154,7 +154,7 @@ public class DroneQueryResolver {
     }
 
     // Helper methods
-    private List<DroneInfo> applyFilters(List<DroneInfo> drones, DroneFiltersInput filters) {
+    private List<DroneInfo> applyFilters(List<DroneInfo> drones, DroneFilters filters) {
         if (filters == null) return drones;
 
         return drones.stream()
@@ -164,7 +164,7 @@ public class DroneQueryResolver {
                 .collect(Collectors.toList());
     }
 
-    private boolean matchesCapabilityFilter(DroneInfo drone, CapabilityFilterInput filter) {
+    private boolean matchesCapabilityFilter(DroneInfo drone, CapabilityFilter filter) {
         if (filter == null) return true;
 
         DroneCapability cap = drone.capability();
@@ -185,7 +185,7 @@ public class DroneQueryResolver {
         return true;
     }
 
-    private boolean matchesCostFilter(DroneInfo drone, CostFilterInput filter) {
+    private boolean matchesCostFilter(DroneInfo drone, CostFilter filter) {
         if (filter == null) return true;
 
         DroneCapability cap = drone.capability();
@@ -203,7 +203,7 @@ public class DroneQueryResolver {
         return true;
     }
 
-    private boolean matchesAvailabilityFilter(DroneInfo drone, AvailabilityFilterInput filter) {
+    private boolean matchesAvailabilityFilter(DroneInfo drone, AvailabilityFilter filter) {
         if (filter == null) return true;
 
         List<DroneAvailability> availability = availability(drone);
@@ -225,7 +225,7 @@ public class DroneQueryResolver {
         });
     }
 
-    private List<DroneInfo> applyOrdering(List<DroneInfo> drones, OrderByInput orderBy) {
+    private List<DroneInfo> applyOrdering(List<DroneInfo> drones, OrderBy orderBy) {
         Comparator<DroneInfo> comparator = switch (orderBy.getField()) {
             case "COST_PER_MOVE" -> Comparator.comparing(d -> d.capability().costPerMove());
             case "COST_INITIAL" -> Comparator.comparing(d -> d.capability().costInitial());
