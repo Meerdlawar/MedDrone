@@ -13,6 +13,7 @@ import uk.ac.ed.acp.cw2.dto.DroneCapability;
 import uk.ac.ed.acp.cw2.dto.DroneInfo;
 import uk.ac.ed.acp.cw2.services.DroneAvailabilityService;
 import uk.ac.ed.acp.cw2.services.DroneQueryService;
+import uk.ac.ed.acp.cw2.services.GraphQLDataService;
 
 import java.util.List;
 
@@ -42,6 +43,10 @@ class DroneStaticQueryControllerTest {
 
     @MockitoBean
     private DroneAvailabilityService droneAvailabilityService;
+
+    // ADD THIS: Mock the GraphQLDataService
+    @MockitoBean
+    private GraphQLDataService graphQLDataService;
 
     // -------------------------------------------------------------------------
     // 1) /dronesWithCooling/{state}
