@@ -178,11 +178,7 @@ public class DroneQueryResolver {
         if (filter.getCooling() != null && cap.cooling() != filter.getCooling()) {
             return false;
         }
-        if (filter.getHeating() != null && cap.heating() != filter.getHeating()) {
-            return false;
-        }
-
-        return true;
+        return filter.getHeating() == null || cap.heating() == filter.getHeating();
     }
 
     private boolean matchesCostFilter(DroneInfo drone, CostFilter filter) {
@@ -196,11 +192,7 @@ public class DroneQueryResolver {
         if (filter.getMaxCostInitial() != null && cap.costInitial() > filter.getMaxCostInitial()) {
             return false;
         }
-        if (filter.getMaxCostFinal() != null && cap.costFinal() > filter.getMaxCostFinal()) {
-            return false;
-        }
-
-        return true;
+        return filter.getMaxCostFinal() == null || !(cap.costFinal() > filter.getMaxCostFinal());
     }
 
     private boolean matchesAvailabilityFilter(DroneInfo drone, AvailabilityFilter filter) {
