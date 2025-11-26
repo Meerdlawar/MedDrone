@@ -21,18 +21,22 @@ public class DroneRoutingService {
 
     private final DroneAvailabilityService availabilityService;
     private final DroneQueryService droneQueryService;
+    private final GraphQLDataService graphQLDataService;
 
     private List<RestrictedAreas> cachedRestrictedAreas = null;
 
+    // OPTIMIZED: Added GraphQLDataService for efficient data fetching
     public DroneRoutingService(DroneAvailabilityService availabilityService,
-                               DroneQueryService droneQueryService) {
+                               DroneQueryService droneQueryService,
+                               GraphQLDataService graphQLDataService) {
         this.availabilityService = availabilityService;
         this.droneQueryService = droneQueryService;
+        this.graphQLDataService = graphQLDataService;
     }
 
     public Map<String, Object> calcDeliveryPathAsGeoJson(List<MedDispatchRec> req) {
         long startTime = System.currentTimeMillis();
-        logger.info("=== calcDeliveryPathAsGeoJson START (INEFFICIENT VERSION) ===");
+        logger.info("=== calcDeliveryPathAsGeoJson START (OPTIMIZED WITH GRAPHQL) ===");
         logger.info("Number of orders: {}", Objects.requireNonNullElse(req, Collections.emptyList()).size());
 
         cachedRestrictedAreas = null;
@@ -51,10 +55,17 @@ public class DroneRoutingService {
             return createEmptyGeoJson();
         }
 
-        Map<Integer, LngLat> droneOrigins = droneQueryService.fetchDroneOriginLocations();
-        List<DroneInfo> drones = droneQueryService.fetchDrones();
-        Map<Integer, DroneCapability> capsById = drones.stream()
+        // OPTIMIZED: Use GraphQL to fetch drones and service points in a single query
+        // Before: 3 separate REST calls (fetchDrones, fetchServicePoints, fetchDroneOriginLocations)
+        // After: 1 GraphQL query fetches both drones and service points
+        logger.info("Fetching all data via single GraphQL query");
+        GraphQLDataService.DataBundle dataBundle = graphQLDataService.fetchAllData();
+
+        Map<Integer, DroneCapability> capsById = dataBundle.drones().stream()
                 .collect(Collectors.toMap(DroneInfo::id, DroneInfo::capability));
+
+        // Build drone origins from service points and availability data
+        Map<Integer, LngLat> droneOrigins = droneQueryService.fetchDroneOriginLocations();
 
         cachedRestrictedAreas = droneQueryService.fetchRestrictedAreas();
         logger.info("Fetched {} restricted areas", cachedRestrictedAreas.size());
@@ -104,7 +115,7 @@ public class DroneRoutingService {
 
     public DeliveryPlan calcDeliveryPlan(List<MedDispatchRec> req) {
         long startTime = System.currentTimeMillis();
-        logger.info("=== calcDeliveryPlan START (INEFFICIENT VERSION) ===");
+        logger.info("=== calcDeliveryPlan START (OPTIMIZED WITH GRAPHQL) ===");
         logger.info("Number of orders: {}", req == null ? 0 : req.size());
 
         cachedRestrictedAreas = null;
@@ -122,10 +133,17 @@ public class DroneRoutingService {
             return new DeliveryPlan(0.0, 0, List.of());
         }
 
-        Map<Integer, LngLat> droneOrigins = droneQueryService.fetchDroneOriginLocations();
-        List<DroneInfo> drones = droneQueryService.fetchDrones();
-        Map<Integer, DroneCapability> capsById = drones.stream()
+        // OPTIMIZED: Use GraphQL to fetch drones and service points in a single query
+        // Before: Multiple separate REST calls (fetchDrones, fetchServicePoints, fetchDroneOriginLocations)
+        // After: 1 GraphQL query fetches both, reducing network overhead
+        logger.info("Fetching all data via single GraphQL query");
+        GraphQLDataService.DataBundle dataBundle = graphQLDataService.fetchAllData();
+
+        Map<Integer, DroneCapability> capsById = dataBundle.drones().stream()
                 .collect(Collectors.toMap(DroneInfo::id, DroneInfo::capability));
+
+        // Build drone origins from service points and availability data
+        Map<Integer, LngLat> droneOrigins = droneQueryService.fetchDroneOriginLocations();
 
         cachedRestrictedAreas = droneQueryService.fetchRestrictedAreas();
         logger.info("Fetched {} restricted areas", cachedRestrictedAreas.size());

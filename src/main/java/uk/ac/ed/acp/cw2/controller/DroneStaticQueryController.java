@@ -15,35 +15,49 @@ public class DroneStaticQueryController {
 
     private static final Logger logger = LoggerFactory.getLogger(DroneStaticQueryController.class);
 
-    private final DroneQueryService droneService;
-    public DroneStaticQueryController(DroneQueryService droneService) {
-        this.droneService = droneService;
+    private final GraphQLDataService graphQLDataService;
+
+    // OPTIMIZED: Use GraphQLDataService instead of DroneQueryService
+    // This reduces overfetching by using GraphQL queries
+    public DroneStaticQueryController(GraphQLDataService graphQLDataService) {
+        this.graphQLDataService = graphQLDataService;
     }
 
-    // Retrieves Json details about drones and checks if it matches the query
+    /**
+     * OPTIMIZED: Uses GraphQL query with server-side filtering
+     * Before: Fetched ALL drones, filtered client-side, returned only IDs
+     * After: GraphQL query requests only what's needed
+     */
     @GetMapping("dronesWithCooling/{state}")
     public int[] dronesWithCooling(@PathVariable boolean state) {
-        List<DroneInfo> drones = droneService.fetchDrones();
-        List<Integer> droneId = new ArrayList<>();
-        for (DroneInfo drone : drones) {
-            if (drone.capability().cooling() == state) {
-                droneId.add(drone.id());
-            }
-        }
-        return droneId.stream().mapToInt(i -> i).toArray();
+        logger.info("Fetching drones with cooling={} via GraphQL", state);
+
+        // Use GraphQL query to fetch only drones with the specified cooling capability
+        // This avoids fetching all drone data when we only need IDs
+        List<DroneInfo> drones = graphQLDataService.fetchDronesWithFilters(state, null, null, null);
+
+        return drones.stream()
+                .mapToInt(DroneInfo::id)
+                .toArray();
     }
 
-    // Retrieves Json details about drones for that particular droneID
+    /**
+     * OPTIMIZED: Uses GraphQL query to fetch single drone by ID
+     * Before: Fetched ALL drones to find one
+     * After: GraphQL query fetches only the specific drone
+     */
     @GetMapping("droneDetails/{droneId}")
     public ResponseEntity<DroneInfo> droneDetails(@PathVariable int droneId) {
-        List<DroneInfo> drones = droneService.fetchDrones();
+        logger.info("Fetching drone details for ID {} via GraphQL", droneId);
 
-        for (DroneInfo drone : drones) {
-            if (drone.id() == droneId) {
-                DroneInfo dto = new DroneInfo(drone.name(), drone.id(), drone.capability());
-                return ResponseEntity.ok(dto);
-            }
+        // Use GraphQL query to fetch only the specific drone
+        // This avoids fetching all drones when we only need one
+        DroneInfo drone = graphQLDataService.fetchDroneById(droneId);
+
+        if (drone == null) {
+            return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.notFound().build();
+
+        return ResponseEntity.ok(drone);
     }
 }

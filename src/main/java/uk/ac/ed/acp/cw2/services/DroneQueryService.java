@@ -1,5 +1,6 @@
 package uk.ac.ed.acp.cw2.services;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -26,18 +27,38 @@ public class DroneQueryService {
                 .body(typeRef);
     }
 
+    /**
+     * OPTIMIZED: Cache drone data to reduce API calls
+     * Drones are relatively static data that rarely change
+     */
+    @Cacheable("drones")
     public List<DroneInfo> fetchDrones() {
         return fetch(new ParameterizedTypeReference<>() {}, "/drones");
     }
 
+    /**
+     * OPTIMIZED: Cache drone availability to reduce API calls
+     * Availability schedules are relatively static
+     */
+    @Cacheable("droneAvailability")
     public List<DronesForServicePoints> fetchDroneAvailability() {
         return fetch(new ParameterizedTypeReference<>() {}, "/drones-for-service-points");
     }
 
+    /**
+     * OPTIMIZED: Cache service points to reduce API calls
+     * Service point locations are static data
+     */
+    @Cacheable("servicePoints")
     public List<ServicePoints> fetchServicePoints() {
         return fetch(new ParameterizedTypeReference<>() {}, "/service-points");
     }
 
+    /**
+     * OPTIMIZED: Cache restricted areas to reduce API calls
+     * No-fly zones are static geographic data
+     */
+    @Cacheable("restrictedAreas")
     public List<RestrictedAreas> fetchRestrictedAreas() {
         return fetch(new ParameterizedTypeReference<>() {}, "/restricted-areas");
     }
