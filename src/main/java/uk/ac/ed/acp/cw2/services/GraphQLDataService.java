@@ -284,10 +284,10 @@ public class GraphQLDataService {
     }
 
     public record PerformanceMetrics(
-            long idsOnlyTimeNs,
-            long fullObjectsTimeNs,
-            int idsDataSizeBytes,
-            int fullObjectsDataSizeBytes,
-            double dataReductionPercent
+            long idsOnlyTime, // Time to fetch IDs only
+            long fullObjectsTime, // Time to fetch full objects
+            int idsDataSizeBytes, // Data size for IDs only
+            int fullObjectsDataSizeBytes, // Data size for full objects
+            double dataReductionPercent // Data reduction
     ) {}
 }

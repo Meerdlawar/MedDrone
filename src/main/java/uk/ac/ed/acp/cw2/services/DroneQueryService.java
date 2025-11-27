@@ -54,10 +54,6 @@ public class DroneQueryService {
         return fetch(new ParameterizedTypeReference<>() {}, "/service-points");
     }
 
-    /**
-     * OPTIMIZED: Cache restricted areas to reduce API calls
-     * No-fly zones are static geographic data
-     */
     @Cacheable("restrictedAreas")
     public List<RestrictedAreas> fetchRestrictedAreas() {
         return fetch(new ParameterizedTypeReference<>() {}, "/restricted-areas");
