@@ -18,7 +18,8 @@ public record MedDispatchRec(
         LocalDate date,
 
         // Optional (may be null if not present in JSON)
-        @JsonFormat(pattern = "H:mm")
+        //@JsonFormat(pattern = "H:mm")
+        @JsonFormat(pattern = "HH:mm:ss")
         LocalTime time,
 
         // Required object; its own fields will be validated
