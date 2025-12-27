@@ -1,9 +1,9 @@
 package uk.ac.ed.acp.cw2.services;
 
-import jakarta.validation.constraints.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import uk.ac.ed.acp.cw2.data.Directions.Direction16;
 import uk.ac.ed.acp.cw2.data.Node;
 import uk.ac.ed.acp.cw2.dto.*;
 
@@ -24,7 +24,7 @@ public class DroneRoutingService {
 
     // Pathfinding constraints
     private static final int MAX_PATHFINDING_ITERATIONS = 100_000;
-    private static final long MAX_PATHFINDING_TIME_MS = 5_000;
+    private static final long MAX_PATHFINDING_TIME_MS = 10_000;
     private static final int PATHFINDING_LOG_INTERVAL = 10_000;
 
     // Allocation constraints
@@ -243,25 +243,6 @@ public class DroneRoutingService {
         }
     }
 
-    /**
-     * Efficient key-value storage for A* pathfinding nodes.
-     */
-    private static class NodeMap {
-        private final Map<String, Node> nodes = new HashMap<>();
-
-        void put(String key, Node node) {
-            nodes.put(key, node);
-        }
-
-        Node get(String key) {
-            return nodes.get(key);
-        }
-
-        boolean contains(String key) {
-            return nodes.containsKey(key);
-        }
-    }
-
     // ==================== Context Building ====================
 
     /**
@@ -325,7 +306,8 @@ public class DroneRoutingService {
             DroneCapability caps,
             List<MedDispatchRec> orders) {
 
-        logger.debug("buildSimpleSingleFlight: {} orders", orders.size());
+        logger.debug("buildSimpleSingleFlight: {} orders from origin ({}, {})",
+                orders.size(), origin.lng(), origin.lat());
 
         List<LngLat> fullPath = new ArrayList<>();
         fullPath.add(origin);
@@ -339,7 +321,8 @@ public class DroneRoutingService {
                 return null;
             }
 
-            logger.debug("Finding path to order {}: {} -> {}", order.id(), current, target);
+            logger.debug("Finding path to order {}: ({}, {}) -> ({}, {})",
+                    order.id(), current.lng(), current.lat(), target.lng(), target.lat());
 
             List<Node> segment = findPathWithTimeout(current, target);
             if (segment.isEmpty()) {
@@ -348,8 +331,11 @@ public class DroneRoutingService {
             }
 
             // Add segment (skip first point as it's current position)
-            segment.stream().skip(1).forEach(node -> fullPath.add(node.getXy()));
+            for (int i = 1; i < segment.size(); i++) {
+                fullPath.add(segment.get(i).getXy());
+            }
 
+            // Add hover point (delivery)
             fullPath.add(target);
             current = target;
         }
@@ -362,7 +348,9 @@ public class DroneRoutingService {
             return null;
         }
 
-        returnSegment.stream().skip(1).forEach(node -> fullPath.add(node.getXy()));
+        for (int i = 1; i < returnSegment.size(); i++) {
+            fullPath.add(returnSegment.get(i).getXy());
+        }
 
         int moves = countMoves(fullPath);
 
@@ -389,7 +377,7 @@ public class DroneRoutingService {
                 allOrders.size(), availableDrones.length);
 
         AllocationResult result = new AllocationResult();
-        LinkedHashSet<@NotNull Integer> remaining = allOrders.stream()
+        Set<Integer> remaining = allOrders.stream()
                 .map(MedDispatchRec::id)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
 
@@ -453,7 +441,8 @@ public class DroneRoutingService {
             DroneCapability caps,
             List<MedDispatchRec> availableOrders) {
 
-        logger.debug("buildBestFlight: {} available orders", availableOrders.size());
+        logger.debug("buildBestFlight: {} available orders from origin ({}, {})",
+                availableOrders.size(), origin.lng(), origin.lat());
 
         if (availableOrders.isEmpty()) {
             return null;
@@ -527,7 +516,9 @@ public class DroneRoutingService {
             }
 
             // Add path segment
-            segment.stream().skip(1).forEach(node -> fullPath.add(node.getXy()));
+            for (int i = 1; i < segment.size(); i++) {
+                fullPath.add(segment.get(i).getXy());
+            }
 
             // Add delivery location and hover
             fullPath.add(target);
@@ -545,7 +536,9 @@ public class DroneRoutingService {
             return null;
         }
 
-        returnSegment.stream().skip(1).forEach(node -> fullPath.add(node.getXy()));
+        for (int i = 1; i < returnSegment.size(); i++) {
+            fullPath.add(returnSegment.get(i).getXy());
+        }
 
         int moves = countMoves(fullPath);
         if (moves > caps.maxMoves()) {
@@ -567,12 +560,12 @@ public class DroneRoutingService {
 
         // Validate endpoints
         if (isInRestrictedArea(target)) {
-            logger.error("Target {} is in restricted area", target);
+            logger.warn("Target ({}, {}) is in restricted area", target.lng(), target.lat());
             return List.of();
         }
 
         if (isInRestrictedArea(origin)) {
-            logger.error("Origin {} is in restricted area", origin);
+            logger.warn("Origin ({}, {}) is in restricted area", origin.lng(), origin.lat());
             return List.of();
         }
 
@@ -582,48 +575,53 @@ public class DroneRoutingService {
         }
 
         double straightLineDist = GeometryService.distance(origin, target);
-        logger.debug("Pathfinding distance: {:.6f} degrees ({:.0f} min steps)",
-                straightLineDist, straightLineDist / 0.00015);
+        int estimatedSteps = (int) Math.ceil(straightLineDist / 0.00015);
+        logger.debug("Pathfinding from ({}, {}) to ({}, {}): distance={}, ~{} steps",
+                String.format("%.6f", origin.lng()), String.format("%.6f", origin.lat()),
+                String.format("%.6f", target.lng()), String.format("%.6f", target.lat()),
+                String.format("%.6f", straightLineDist), estimatedSteps);
 
         // A* data structures
         PriorityQueue<Node> openQueue = new PriorityQueue<>(
                 Comparator.comparingDouble(Node::getFCost));
-        Set<String> openSet = new HashSet<>();
-        Set<String> closedSet = new HashSet<>();
-        NodeMap allNodes = new NodeMap();
+        Map<String, Double> bestGCost = new HashMap<>();
 
         // Initialize with start node
         Node startNode = new Node(origin, null, target);
         String startKey = positionKey(origin);
         openQueue.offer(startNode);
-        openSet.add(startKey);
-        allNodes.put(startKey, startNode);
+        bestGCost.put(startKey, 0.0);
 
         int iterations = 0;
 
         while (!openQueue.isEmpty() && iterations < MAX_PATHFINDING_ITERATIONS) {
             iterations++;
 
-            // Periodic logging
-            if (iterations % PATHFINDING_LOG_INTERVAL == 0) {
-                Node peek = openQueue.peek();
-                logger.debug("A* iteration {}: open={}, closed={}, best dist={:.6f}",
-                        iterations, openQueue.size(), closedSet.size(),
-                        peek != null ? GeometryService.distance(peek.getXy(), target) : 0);
+            // Check timeout periodically
+            if (iterations % 1000 == 0) {
+                if (System.currentTimeMillis() - startTime > MAX_PATHFINDING_TIME_MS) {
+                    logger.error("A* timeout after {}ms, {} iterations",
+                            System.currentTimeMillis() - startTime, iterations);
+                    return List.of();
+                }
             }
 
-            // Check timeout
-            if (System.currentTimeMillis() - startTime > MAX_PATHFINDING_TIME_MS) {
-                logger.error("A* timeout after {}ms, {} iterations",
-                        System.currentTimeMillis() - startTime, iterations);
-                return List.of();
+            // Periodic logging
+            if (iterations % PATHFINDING_LOG_INTERVAL == 0) {
+                logger.debug("A* iteration {}: open={}, positions tracked={}",
+                        iterations, openQueue.size(), bestGCost.size());
             }
 
             Node current = openQueue.poll();
             if (current == null) break;
 
             String currentKey = positionKey(current.getXy());
-            openSet.remove(currentKey);
+
+            // Skip if we've already found a better path to this position
+            Double recordedGCost = bestGCost.get(currentKey);
+            if (recordedGCost != null && current.getGCost() > recordedGCost + 1e-9) {
+                continue;
+            }
 
             // Check if goal reached
             if (GeometryService.isClose(current.getXy(), target)) {
@@ -633,53 +631,80 @@ public class DroneRoutingService {
                 return path;
             }
 
-            closedSet.add(currentKey);
-
             // Explore neighbors
             for (Node neighbour : generateNeighbours(current, target)) {
-                if (isInRestrictedArea(neighbour.getXy())) {
+                // Check if move crosses restricted area
+                if (moveCrossesRestrictedArea(current.getXy(), neighbour.getXy())) {
                     continue;
                 }
 
                 String neighbourKey = positionKey(neighbour.getXy());
 
-                if (closedSet.contains(neighbourKey)) {
-                    continue;
-                }
-
-                Node existingNode = allNodes.get(neighbourKey);
-
-                if (existingNode == null) {
-                    // New node
+                // Check if we've found a better path to this neighbor
+                Double existingGCost = bestGCost.get(neighbourKey);
+                if (existingGCost == null || neighbour.getGCost() < existingGCost - 1e-9) {
+                    bestGCost.put(neighbourKey, neighbour.getGCost());
                     openQueue.offer(neighbour);
-                    openSet.add(neighbourKey);
-                    allNodes.put(neighbourKey, neighbour);
-                } else if (neighbour.getGCost() < existingNode.getGCost()) {
-                    // Better path found
-                    openQueue.remove(existingNode);
-                    existingNode.setGCost(neighbour.getGCost());
-                    existingNode.setParent(current);
-                    openQueue.offer(existingNode);
-                    openSet.add(neighbourKey);
                 }
             }
         }
 
-        logger.error("A* FAILED: {}ms, {} iterations (limit: {})",
-                System.currentTimeMillis() - startTime, iterations, MAX_PATHFINDING_ITERATIONS);
+        logger.error("A* FAILED after {}ms, {} iterations (no path found)",
+                System.currentTimeMillis() - startTime, iterations);
         return List.of();
     }
 
     /**
-     * Generate all 16-direction neighbors for A* expansion.
+     * Generate neighbors prioritized by direction toward goal.
      */
     private List<Node> generateNeighbours(Node current, LngLat goal) {
-        return Arrays.stream(uk.ac.ed.acp.cw2.data.Directions.Direction16.values())
-                .map(direction -> {
-                    LngLat nextPos = GeometryService.stepFrom(current.getXy(), direction);
-                    return new Node(nextPos, current, goal);
-                })
-                .collect(Collectors.toList());
+        LngLat currentPos = current.getXy();
+
+        // Calculate angle to goal
+        double dx = goal.lng() - currentPos.lng();
+        double dy = goal.lat() - currentPos.lat();
+        double angleToGoal = Math.toDegrees(Math.atan2(dy, dx));
+        if (angleToGoal < 0) angleToGoal += 360;
+
+        // Generate all neighbors
+        List<Node> neighbors = new ArrayList<>();
+        for (Direction16 direction : Direction16.values()) {
+            LngLat nextPos = GeometryService.stepFrom(currentPos, direction);
+            neighbors.add(new Node(nextPos, current, goal));
+        }
+
+        // Sort by how close the direction is to the goal direction
+        final double targetAngle = angleToGoal;
+        neighbors.sort((a, b) -> {
+            double angleA = getDirectionAngle(currentPos, a.getXy());
+            double angleB = getDirectionAngle(currentPos, b.getXy());
+            double diffA = Math.abs(angleDifference(angleA, targetAngle));
+            double diffB = Math.abs(angleDifference(angleB, targetAngle));
+            return Double.compare(diffA, diffB);
+        });
+
+        return neighbors;
+    }
+
+    /**
+     * Get angle from one point to another in degrees (0-360).
+     */
+    private double getDirectionAngle(LngLat from, LngLat to) {
+        double dx = to.lng() - from.lng();
+        double dy = to.lat() - from.lat();
+        double angle = Math.toDegrees(Math.atan2(dy, dx));
+        if (angle < 0) angle += 360;
+        return angle;
+    }
+
+    /**
+     * Calculate the smallest difference between two angles.
+     */
+    private double angleDifference(double angle1, double angle2) {
+        double diff = angle1 - angle2;
+        while (diff > 180) diff -= 360;
+        while (diff < -180) diff += 360;
+        return diff;
     }
 
     /**
@@ -698,21 +723,102 @@ public class DroneRoutingService {
         return path;
     }
 
-    // ==================== Utility Methods ====================
+    // ==================== Restricted Area Checking ====================
 
     /**
-     * Generate unique position key for hashing.
+     * Check if the line segment from 'from' to 'to' crosses any restricted area.
      */
-    private String positionKey(LngLat pos) {
-        return String.format("%.9f,%.9f", pos.lng(), pos.lat());
+    private boolean moveCrossesRestrictedArea(LngLat from, LngLat to) {
+        List<RestrictedAreas> areas = getRestrictedAreas();
+
+        for (RestrictedAreas area : areas) {
+            List<LngLat> vertices = area.vertices();
+
+            // Check if destination is inside
+            if (isInRegion(to, vertices)) {
+                return true;
+            }
+
+            // Check if the line segment intersects any edge of the polygon
+            for (int i = 0; i < vertices.size() - 1; i++) {
+                LngLat v1 = vertices.get(i);
+                LngLat v2 = vertices.get(i + 1);
+
+                if (lineSegmentsIntersect(from, to, v1, v2)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
-     * Check if point is in any restricted area (with caching).
+     * Check if two line segments intersect.
+     * Segment 1: p1 to p2
+     * Segment 2: p3 to p4
+     */
+    private boolean lineSegmentsIntersect(LngLat p1, LngLat p2, LngLat p3, LngLat p4) {
+        double d1 = crossProductDirection(p3, p4, p1);
+        double d2 = crossProductDirection(p3, p4, p2);
+        double d3 = crossProductDirection(p1, p2, p3);
+        double d4 = crossProductDirection(p1, p2, p4);
+
+        if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+                ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+            return true;
+        }
+
+        double eps = 1e-10;
+        if (Math.abs(d1) < eps && pointOnSegment(p3, p4, p1)) return true;
+        if (Math.abs(d2) < eps && pointOnSegment(p3, p4, p2)) return true;
+        if (Math.abs(d3) < eps && pointOnSegment(p1, p2, p3)) return true;
+        if (Math.abs(d4) < eps && pointOnSegment(p1, p2, p4)) return true;
+
+        return false;
+    }
+
+    /**
+     * Calculate cross product direction for line intersection.
+     */
+    private double crossProductDirection(LngLat pi, LngLat pj, LngLat pk) {
+        return (pk.lng() - pi.lng()) * (pj.lat() - pi.lat()) -
+                (pj.lng() - pi.lng()) * (pk.lat() - pi.lat());
+    }
+
+    /**
+     * Check if point pk lies on segment pi-pj (assuming collinear).
+     */
+    private boolean pointOnSegment(LngLat pi, LngLat pj, LngLat pk) {
+        return Math.min(pi.lng(), pj.lng()) <= pk.lng() + 1e-10 &&
+                pk.lng() <= Math.max(pi.lng(), pj.lng()) + 1e-10 &&
+                Math.min(pi.lat(), pj.lat()) <= pk.lat() + 1e-10 &&
+                pk.lat() <= Math.max(pi.lat(), pj.lat()) + 1e-10;
+    }
+
+    /**
+     * Check if point is in any restricted area.
      */
     private boolean isInRestrictedArea(LngLat point) {
-        return getRestrictedAreas().stream()
-                .anyMatch(area -> isInRegion(point, area.vertices()));
+        for (RestrictedAreas area : getRestrictedAreas()) {
+            if (isInRegion(point, area.vertices())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ==================== Utility Methods ====================
+
+    /**
+     * Generate unique position key using grid coordinates.
+     * This avoids floating-point precision issues by snapping to a grid.
+     */
+    private String positionKey(LngLat pos) {
+        // Step size is 0.00015, so divide by that to get grid position
+        long gridLng = Math.round(pos.lng() / 0.00015);
+        long gridLat = Math.round(pos.lat() / 0.00015);
+        return gridLng + "," + gridLat;
     }
 
     /**
@@ -736,7 +842,7 @@ public class DroneRoutingService {
     }
 
     /**
-     * Count actual moves (excluding stationary positions).
+     * Count actual moves (excluding stationary hover positions).
      */
     private int countMoves(List<LngLat> flightPath) {
         int moves = 0;

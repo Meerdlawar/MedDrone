@@ -19,7 +19,7 @@ public record MedDispatchRec(
 
         // Optional (may be null if not present in JSON)
         //@JsonFormat(pattern = "H:mm")
-        @JsonFormat(pattern = "HH:mm:ss")
+        @JsonFormat(pattern = "HH:mm:[ss]")
         LocalTime time,
 
         // Required object; its own fields will be validated

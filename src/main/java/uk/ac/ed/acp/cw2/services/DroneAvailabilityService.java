@@ -27,7 +27,7 @@ public class DroneAvailabilityService {
             return new int[0];
         }
 
-        double maxRequiredCapacity = 0.0;
+        double maxRequiredCapacity = 0.0;  // Change to totalRequiredCapacity
         boolean needsCooling = false;
         boolean needsHeating = false;
 
@@ -35,7 +35,9 @@ public class DroneAvailabilityService {
             DispatchRequirements r = dispatch.requirements();
             if (r == null) continue;
 
-            maxRequiredCapacity = Math.max(maxRequiredCapacity, r.capacity());
+            // Change this line:
+            maxRequiredCapacity += r.capacity();  // SUM, not MAX
+
             if (r.cooling()) needsCooling = true;
             if (r.heating()) needsHeating = true;
         }
