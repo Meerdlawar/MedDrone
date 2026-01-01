@@ -3,6 +3,7 @@ package uk.ac.ed.acp.cw2.services;
 import org.springframework.stereotype.Service;
 import uk.ac.ed.acp.cw2.dto.DispatchRequirements;
 import uk.ac.ed.acp.cw2.dto.DroneAvailability;
+import uk.ac.ed.acp.cw2.dto.DroneInfo;
 import uk.ac.ed.acp.cw2.dto.DronesForServicePoints;
 import uk.ac.ed.acp.cw2.dto.ListDrones;
 import uk.ac.ed.acp.cw2.dto.MedDispatchRec;
@@ -11,7 +12,9 @@ import uk.ac.ed.acp.cw2.dto.QueryAttributes;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class DroneAvailabilityService {
@@ -21,13 +24,12 @@ public class DroneAvailabilityService {
         this.droneService = droneService;
     }
 
-
     public int[] queryAvailableDrones(List<MedDispatchRec> dispatches) {
         if (dispatches == null || dispatches.isEmpty()) {
             return new int[0];
         }
 
-        double maxRequiredCapacity = 0.0;  // Change to totalRequiredCapacity
+        double maxRequiredCapacity = 0.0;
         boolean needsCooling = false;
         boolean needsHeating = false;
 
@@ -35,8 +37,7 @@ public class DroneAvailabilityService {
             DispatchRequirements r = dispatch.requirements();
             if (r == null) continue;
 
-            // Change this line:
-            maxRequiredCapacity += r.capacity();  // SUM, not MAX
+            maxRequiredCapacity += r.capacity();
 
             if (r.cooling()) needsCooling = true;
             if (r.heating()) needsHeating = true;
@@ -44,11 +45,10 @@ public class DroneAvailabilityService {
 
         List<QueryAttributes> reqs = new ArrayList<>();
 
-        // Capacity >= maxRequiredCapacity (adjust operator string to whatever ILP expects)
         if (maxRequiredCapacity > 0) {
             reqs.add(new QueryAttributes(
                     "capacity",
-                    ">",              // <-- important change from "="
+                    ">",
                     String.valueOf(maxRequiredCapacity)
             ));
         }
@@ -65,10 +65,30 @@ public class DroneAvailabilityService {
             return new int[0];
         }
 
-        // Filter by availability as you already do
+        // Get the strictest maxCost requirement
+        Double minMaxCost = dispatches.stream()
+                .map(d -> d.requirements().maxCost())
+                .filter(Objects::nonNull)
+                .min(Double::compareTo)
+                .orElse(null);
+
+        // Post-filter by maxCost if specified
+        if (minMaxCost != null) {
+            List<DroneInfo> allDrones = droneService.fetchDrones();
+            final Double costLimit = minMaxCost;
+            attributeMatched = Arrays.stream(attributeMatched)
+                    .filter(id -> allDrones.stream()
+                            .anyMatch(d -> d.id() == id && d.capability().costPerMove() < costLimit))
+                    .toArray();
+        }
+
+        if (attributeMatched.length == 0) {
+            return new int[0];
+        }
+
+        // Filter by availability
         return filterByAvailability(attributeMatched, dispatches);
     }
-
 
     private int[] filterByAvailability(int[] drones, List<MedDispatchRec> dispatches) {
         List<DronesForServicePoints> all = droneService.fetchDroneAvailability();
@@ -93,11 +113,11 @@ public class DroneAvailabilityService {
 
             for (ListDrones ld : sps.drones()) {
                 if (ld.id() == droneId) {
-                    return ld.availability(); // List<DroneAvailability>
+                    return ld.availability();
                 }
             }
         }
-        return List.of(); // no availability for this drone
+        return List.of();
     }
 
     private boolean isDroneAvailableForAllDispatches(List<DroneAvailability> slots, List<MedDispatchRec> dispatches) {
@@ -114,10 +134,8 @@ public class DroneAvailabilityService {
         LocalTime time = dispatch.time();
 
         if (date == null && time == null) {
-            // no constraints -> always OK
             return true;
         }
-
 
         String dispatchDay;
         if (date != null) {
@@ -127,24 +145,20 @@ public class DroneAvailabilityService {
         }
 
         for (DroneAvailability a : slots) {
-            // Check day of week
             if (dispatchDay != null &&
                     !dispatchDay.equalsIgnoreCase(a.dayOfWeek())) {
-                continue; // wrong day, try next slot
+                continue;
             }
 
-            // Check time window
             if (time != null) {
                 if (time.isBefore(a.from()) || time.isAfter(a.until())) {
-                    continue; // time not in this slot
+                    continue;
                 }
             }
 
-            // A slot matches this dispatch
             return true;
         }
 
-        // No slot matched
         return false;
     }
 }

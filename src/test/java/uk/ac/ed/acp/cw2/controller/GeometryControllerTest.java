@@ -51,24 +51,18 @@ class GeometryControllerTest {
     }
 
     @Test
-    void distanceTo_semanticErrorCoords_stillReturns200AndDistance() throws Exception {
+    void distanceTo_semanticErrorCoords_shouldReject() throws Exception {
         String body = """
-            {
-              "position1": { "lng": -300.192473, "lat": 550.946233 },
-              "position2": { "lng": -3202.192473, "lat": 5533.942617 }
-            }
-            """;
+        {
+          "position1": { "lng": -300.192473, "lat": 550.946233 },
+          "position2": { "lng": -3202.192473, "lat": 5533.942617 }
+        }
+        """;
 
-        var result = mvc.perform(post("/api/v1/distanceTo")
+        mvc.perform(post("/api/v1/distanceTo")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        String content = result.getResponse().getContentAsString();
-        double value = Double.parseDouble(content);
-        // Just assert it's a large positive distance (like the checker saw: ~5766)
-        assertThat(value).isGreaterThan(1000.0);
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -115,22 +109,18 @@ class GeometryControllerTest {
     }
 
     @Test
-    void isCloseTo_semanticErrorCoords_returns200AndFalse() throws Exception {
+    void isCloseTo_invalidCoords_shouldReturnBadRequest() throws Exception {
         String body = """
-            {
-              "position1": { "lng": -3004.192473, "lat": 550.946233 },
-              "position2": { "lng": -390.192473, "lat": 551.942617 }
-            }
-            """;
+        {
+          "position1": { "lng": -3004.192473, "lat": 550.946233 },
+          "position2": { "lng": -390.192473, "lat": 551.942617 }
+        }
+        """;
 
-        var result = mvc.perform(post("/api/v1/isCloseTo")
+        mvc.perform(post("/api/v1/isCloseTo")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        String content = result.getResponse().getContentAsString();
-        assertThat(content).isEqualTo("false");
+                .andExpect(status().isBadRequest());
     }
 
     @Test
