@@ -1,4 +1,4 @@
-package uk.ac.ed.acp.cw2.integration;
+package uk.ac.ed.acp.cw2.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -17,9 +17,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Integration tests for DroneStaticQueryController.
  * Tests droneDetails and dronesWithCooling endpoints.
- * 
- * These tests validate the exact behavior expected by the submission checker.
- * Note: These tests require network access to the ILP REST service.
+ *
+ * These tests run against the REAL external ILP REST API.
+ * Note: The submission checker runs against a LOCAL server with INJECTED TEST DATA
+ * (drones 99998, 888, 456), which is why expected values may differ.
+ *
+ * These tests validate behavior with the actual production API data.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
@@ -41,31 +44,7 @@ class DroneStaticQueryControllerIntegrationTest {
     class DroneDetailsTests {
 
         @Test
-        @DisplayName("Get drones details 99998 - returns drone info with all capability fields")
-        void getDroneDetails_99998_returnsDroneInfo() throws Exception {
-            mockMvc.perform(get("/api/v1/droneDetails/{droneId}", 99998))
-                    .andExpect(status().isOk())
-                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                    .andExpect(jsonPath("$.id").value(99998))
-                    .andExpect(jsonPath("$.name").value("Drone 99998"))
-                    .andExpect(jsonPath("$.capability.cooling").value(false))
-                    .andExpect(jsonPath("$.capability.heating").value(false))
-                    .andExpect(jsonPath("$.capability.capacity").value(12.0))
-                    .andExpect(jsonPath("$.capability.maxMoves").value(1500.0))
-                    .andExpect(jsonPath("$.capability.costPerMove").value(0.07))
-                    .andExpect(jsonPath("$.capability.costInitial").value(1.4))
-                    .andExpect(jsonPath("$.capability.costFinal").value(3.5));
-        }
-
-        @Test
-        @DisplayName("Get invalid drones details 99999 - returns 404 Not Found")
-        void getDroneDetails_99999_returns404() throws Exception {
-            mockMvc.perform(get("/api/v1/droneDetails/{droneId}", 99999))
-                    .andExpect(status().isNotFound());
-        }
-
-        @Test
-        @DisplayName("Get drone details for drone 1 - returns valid drone")
+        @DisplayName("Get drone details for drone 1 - returns valid drone with all fields")
         void getDroneDetails_drone1_returnsDroneInfo() throws Exception {
             mockMvc.perform(get("/api/v1/droneDetails/{droneId}", 1))
                     .andExpect(status().isOk())
@@ -81,6 +60,49 @@ class DroneStaticQueryControllerIntegrationTest {
                     .andExpect(jsonPath("$.capability.costInitial").isNumber())
                     .andExpect(jsonPath("$.capability.costFinal").isNumber());
         }
+
+        @Test
+        @DisplayName("Get drone details for drone 5 - returns valid drone")
+        void getDroneDetails_drone5_returnsDroneInfo() throws Exception {
+            mockMvc.perform(get("/api/v1/droneDetails/{droneId}", 5))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.id").value(5))
+                    .andExpect(jsonPath("$.name").exists())
+                    .andExpect(jsonPath("$.capability").exists());
+        }
+
+        @Test
+        @DisplayName("Get drone details for drone 10 - returns valid drone")
+        void getDroneDetails_drone10_returnsDroneInfo() throws Exception {
+            mockMvc.perform(get("/api/v1/droneDetails/{droneId}", 10))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.id").value(10))
+                    .andExpect(jsonPath("$.name").exists())
+                    .andExpect(jsonPath("$.capability").exists());
+        }
+
+        @Test
+        @DisplayName("Get invalid drone details 99999 - returns 404 Not Found")
+        void getDroneDetails_99999_returns404() throws Exception {
+            mockMvc.perform(get("/api/v1/droneDetails/{droneId}", 99999))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("Get invalid drone details 0 - returns 404 Not Found")
+        void getDroneDetails_drone0_returns404() throws Exception {
+            mockMvc.perform(get("/api/v1/droneDetails/{droneId}", 0))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("Get invalid drone details -1 - returns 404 Not Found")
+        void getDroneDetails_negativeId_returns404() throws Exception {
+            mockMvc.perform(get("/api/v1/droneDetails/{droneId}", -1))
+                    .andExpect(status().isNotFound());
+        }
     }
 
     // =========================================================================
@@ -92,23 +114,27 @@ class DroneStaticQueryControllerIntegrationTest {
     class DronesWithCoolingTests {
 
         @Test
-        @DisplayName("Get drones with cooling=true - returns [1,5,8,9,888]")
+        @DisplayName("Get drones with cooling=true - returns array containing drones with cooling")
         void getDronesWithCooling_true_returnsExpectedIds() throws Exception {
             mockMvc.perform(get("/api/v1/dronesWithCooling/{state}", true))
                     .andExpect(status().isOk())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                    .andExpect(jsonPath("$", hasSize(5)))
-                    .andExpect(jsonPath("$", containsInAnyOrder(1, 5, 8, 9, 888)));
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$", hasSize(greaterThan(0))))
+                    // Real API has drones 1, 5, 8, 9 with cooling=true
+                    .andExpect(jsonPath("$", hasItems(1, 5, 8, 9)));
         }
 
         @Test
-        @DisplayName("Get drones without cooling (cooling=false) - returns [2,3,4,6,7,10,99998,456]")
+        @DisplayName("Get drones without cooling (cooling=false) - returns array containing drones without cooling")
         void getDronesWithCooling_false_returnsExpectedIds() throws Exception {
             mockMvc.perform(get("/api/v1/dronesWithCooling/{state}", false))
                     .andExpect(status().isOk())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                    .andExpect(jsonPath("$", hasSize(8)))
-                    .andExpect(jsonPath("$", containsInAnyOrder(2, 3, 4, 6, 7, 10, 99998, 456)));
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$", hasSize(greaterThan(0))))
+                    // Real API has drones 2, 3, 4, 6, 7, 10 without cooling
+                    .andExpect(jsonPath("$", hasItems(2, 3, 4, 6, 7, 10)));
         }
 
         @Test
@@ -129,6 +155,19 @@ class DroneStaticQueryControllerIntegrationTest {
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                     .andExpect(jsonPath("$").isArray())
                     .andExpect(jsonPath("$[*]", everyItem(isA(Integer.class))));
+        }
+
+        @Test
+        @DisplayName("Cooling true and false lists should not overlap")
+        void getDronesWithCooling_noOverlap() throws Exception {
+            // Get cooling=true drones
+            mockMvc.perform(get("/api/v1/dronesWithCooling/{state}", true))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$").isArray())
+                    // These should NOT be in cooling=true
+                    .andExpect(jsonPath("$", not(hasItem(2))))
+                    .andExpect(jsonPath("$", not(hasItem(3))))
+                    .andExpect(jsonPath("$", not(hasItem(4))));
         }
     }
 }
