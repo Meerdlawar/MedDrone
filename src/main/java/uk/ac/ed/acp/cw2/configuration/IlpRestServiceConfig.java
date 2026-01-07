@@ -11,7 +11,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class IlpRestServiceConfig {
 
     private static final String defaultUrl =
-            "https://ilp-rest-2025-bvh6e9hschfagrgy.ukwest-01.azurewebsites.net";
+            "https://ilp-2025-marking.azurewebsites.net";
 
     @Bean
     public String endPoint(@Value("${ILP_ENDPOINT:" + defaultUrl + "}") String url) {
