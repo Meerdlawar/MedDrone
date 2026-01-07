@@ -22,7 +22,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("DroneAvailabilityService maxCost Tests")
-class DroneAvailabilityServiceMaxCostTest {
+class DroneAvailabilityServiceUnitTest {
 
     @Mock
     private DroneQueryService droneQueryService;
