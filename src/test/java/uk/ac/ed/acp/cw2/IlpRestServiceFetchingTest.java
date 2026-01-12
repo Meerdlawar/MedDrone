@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Total: 7 tests
  */
 @DisplayName("FR2: ILP REST Service Fetching Tests")
-class FR2_IlpRestServiceFetchingTest {
+class IlpRestServiceFetchingTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 

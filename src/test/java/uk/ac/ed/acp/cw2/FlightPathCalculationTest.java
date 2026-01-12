@@ -45,7 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("FR5: Flight Path Calculation Tests")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
-class FR5_FlightPathCalculationTest {
+class FlightPathCalculationTest {
 
     private static final double EPS = 1e-12;
     private static final double STEP_SIZE = 0.00015;
@@ -117,11 +117,44 @@ class FR5_FlightPathCalculationTest {
         for (int i = 0; i < polygon.size() - 1; i++) {
             LngLat v1 = polygon.get(i);
             LngLat v2 = polygon.get(i + 1);
-            if (GeometryService.linesIntersect(p1, p2, v1, v2)) {
+            if (linesIntersect(p1, p2, v1, v2)) {
                 return true;
             }
         }
         return false;
+    }
+
+    // Helper: Check if two line segments intersect
+    private boolean linesIntersect(LngLat p1, LngLat p2, LngLat p3, LngLat p4) {
+        double d1 = direction(p3, p4, p1);
+        double d2 = direction(p3, p4, p2);
+        double d3 = direction(p1, p2, p3);
+        double d4 = direction(p1, p2, p4);
+
+        if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+                ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+            return true;
+        }
+
+        double eps = 1e-10;
+        if (Math.abs(d1) < eps && onSegment(p3, p4, p1)) return true;
+        if (Math.abs(d2) < eps && onSegment(p3, p4, p2)) return true;
+        if (Math.abs(d3) < eps && onSegment(p1, p2, p3)) return true;
+        if (Math.abs(d4) < eps && onSegment(p1, p2, p4)) return true;
+
+        return false;
+    }
+
+    private double direction(LngLat pi, LngLat pj, LngLat pk) {
+        return (pk.lng() - pi.lng()) * (pj.lat() - pi.lat()) -
+                (pj.lng() - pi.lng()) * (pk.lat() - pi.lat());
+    }
+
+    private boolean onSegment(LngLat pi, LngLat pj, LngLat pk) {
+        return Math.min(pi.lng(), pj.lng()) <= pk.lng() + 1e-10 &&
+                pk.lng() <= Math.max(pi.lng(), pj.lng()) + 1e-10 &&
+                Math.min(pi.lat(), pj.lat()) <= pk.lat() + 1e-10 &&
+                pk.lat() <= Math.max(pi.lat(), pj.lat()) + 1e-10;
     }
 
     // =========================================================================
@@ -556,9 +589,9 @@ class FR5_FlightPathCalculationTest {
             int moveCount = path.size() > 0 ? path.size() - 1 : 0;
             
             // Get the maximum allowed moves from any drone
-            List<Drones> drones = droneQueryService.fetchDrones();
+            List<DroneInfo> drones = droneQueryService.fetchDrones();
             int maxAllowedMoves = drones.stream()
-                    .mapToInt(Drones::maxMoves)
+                    .mapToInt(d -> (int) d.capability().maxMoves())
                     .max()
                     .orElse(2000);  // Default if no drones
             

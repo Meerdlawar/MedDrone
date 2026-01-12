@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("FR8: REST API Endpoints Tests")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
-class FR8_RestApiEndpointsTest {
+class RestApiEndpointsTest {
 
     @Autowired
     private MockMvc mockMvc;

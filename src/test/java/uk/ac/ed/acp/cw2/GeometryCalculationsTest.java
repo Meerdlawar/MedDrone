@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Total: 10 tests
  */
 @DisplayName("FR3: Geometry Calculations Tests")
-class FR3_GeometryCalculationsTest {
+class GeometryCalculationsTest {
 
     // Tolerance as per specification: ±10⁻¹² 
     private static final double EPS = 1e-12;

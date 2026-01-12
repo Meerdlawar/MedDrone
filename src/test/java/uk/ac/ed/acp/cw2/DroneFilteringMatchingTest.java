@@ -41,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Total: 8 tests
  */
 @DisplayName("FR4: Drone Filtering and Matching Tests")
-class FR4_DroneFilteringMatchingTest {
+class DroneFilteringMatchingTest {
 
     // =========================================================================
     // FR4.1: Check filtering by cooling capability returns only drones 

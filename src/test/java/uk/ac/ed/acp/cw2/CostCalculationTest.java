@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import uk.ac.ed.acp.cw2.dto.DroneInfo;
 import uk.ac.ed.acp.cw2.services.DroneQueryService;
 
 import java.util.ArrayList;
@@ -34,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("FR6: Cost Calculation Tests")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
-class FR6_CostCalculationTest {
+class CostCalculationTest {
 
     private static final double EPS = 1e-6;
 
@@ -177,13 +178,13 @@ class FR6_CostCalculationTest {
             int moveCount = countMovesFromGeoJson(responseJson);
             
             // Get drones to find cost per move
-            List<Drones> drones = droneQueryService.fetchDrones();
+            List<DroneInfo> drones = droneQueryService.fetchDrones();
             
             // If we can identify the assigned drone, verify cost calculation
             if (!drones.isEmpty() && moveCount > 0) {
                 // Find a drone that could have been assigned
-                Drones sampleDrone = drones.get(0);
-                double expectedCost = sampleDrone.costPerMove() * moveCount;
+                DroneInfo sampleDrone = drones.get(0);
+                double expectedCost = sampleDrone.capability().costPerMove() * moveCount;
                 
                 // The actual cost might be in the response or need separate API call
                 // This tests the formula: cost = costPerMove × moves
@@ -302,12 +303,12 @@ class FR6_CostCalculationTest {
             int moveCount = countMovesFromGeoJson(pathJson);
             
             // Get drones
-            List<Drones> drones = droneQueryService.fetchDrones();
+            List<DroneInfo> drones = droneQueryService.fetchDrones();
             
             if (!drones.isEmpty() && moveCount > 0) {
                 // Calculate independently for each possible drone
                 List<Double> possibleCosts = drones.stream()
-                        .map(d -> d.costPerMove() * moveCount)
+                        .map(d -> d.capability().costPerMove() * moveCount)
                         .toList();
                 
                 // At least one of these should be the actual cost
@@ -327,7 +328,7 @@ class FR6_CostCalculationTest {
                         "id": 1,
                         "date": "2025-12-12",
                         "time": "14:30:00",
-                        "requirements": {},
+                        "requirements": {"capacity": 1.0},
                         "delivery": {"lng": -3.188374, "lat": 55.944494}
                     }
                 ]
@@ -343,10 +344,10 @@ class FR6_CostCalculationTest {
             
             // Even minimal deliveries should have moves and therefore cost
             if (moveCount > 0) {
-                List<Drones> drones = droneQueryService.fetchDrones();
+                List<DroneInfo> drones = droneQueryService.fetchDrones();
                 if (!drones.isEmpty()) {
                     double minCost = drones.stream()
-                            .mapToDouble(d -> d.costPerMove() * moveCount)
+                            .mapToDouble(d -> d.capability().costPerMove() * moveCount)
                             .min()
                             .orElse(0);
                     

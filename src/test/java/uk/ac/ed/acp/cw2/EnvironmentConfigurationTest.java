@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Total: 3 tests
  */
 @DisplayName("FR1: Environment Configuration Tests")
-class FR1_EnvironmentConfigurationTest {
+class EnvironmentConfigurationTest {
 
     // URL Validation utility class (mirrors application logic)
     static class IlpUrlValidator {

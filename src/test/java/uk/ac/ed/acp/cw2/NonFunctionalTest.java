@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("NFR: Non-Functional Requirements Tests")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
-class NFR_NonFunctionalTest {
+class NonFunctionalTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -60,7 +60,7 @@ class NFR_NonFunctionalTest {
              "requirements": {"capacity": 1.0}, 
              "delivery": {"lng": -3.188374, "lat": 55.944494}},
             {"id": 2, "date": "2025-12-12", "time": "14:30:00", 
-             "requirements": {"capacity": 1.5, "requiresCooling": true}, 
+             "requirements": {"capacity": 1.5, "cooling": true}, 
              "delivery": {"lng": -3.186500, "lat": 55.945000}},
             {"id": 3, "date": "2025-12-12", "time": "14:30:00", 
              "requirements": {"capacity": 2.0}, 
@@ -69,7 +69,7 @@ class NFR_NonFunctionalTest {
              "requirements": {"capacity": 0.5}, 
              "delivery": {"lng": -3.185000, "lat": 55.946000}},
             {"id": 5, "date": "2025-12-12", "time": "14:30:00", 
-             "requirements": {"capacity": 1.0, "requiresHeating": true}, 
+             "requirements": {"capacity": 1.0, "heating": true}, 
              "delivery": {"lng": -3.187000, "lat": 55.942000}}
         ]
         """;
