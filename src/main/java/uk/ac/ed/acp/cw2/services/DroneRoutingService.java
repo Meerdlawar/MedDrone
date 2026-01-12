@@ -335,9 +335,11 @@ public class DroneRoutingService {
                 fullPath.add(segment.get(i).getXy());
             }
 
-            // Add hover point (delivery)
-            fullPath.add(target);
-            current = target;
+            // Add hover point (stay at the last position of the segment, which is close to target)
+            // We don't snap to the exact target to maintain consistent step size
+            LngLat arrivalPos = segment.get(segment.size() - 1).getXy();
+            fullPath.add(arrivalPos);
+            current = arrivalPos;
         }
 
         // Return to origin
@@ -520,12 +522,13 @@ public class DroneRoutingService {
                 fullPath.add(segment.get(i).getXy());
             }
 
-            // Add delivery location and hover
-            fullPath.add(target);
-            fullPath.add(target); // Hover point
+            // Add hover point
+            // Use last segment point to ensure step size consistency
+            LngLat arrivalPos = segment.get(segment.size() - 1).getXy();
+            fullPath.add(arrivalPos);
 
             hoverIndices.add(fullPath.size() - 1);
-            current = target;
+            current = arrivalPos;
         }
 
         // Return to origin
@@ -625,8 +628,26 @@ public class DroneRoutingService {
 
             // Check if goal reached
             if (GeometryService.isClose(current.getXy(), target)) {
+                // If we are close, check if we can reach the target exactly (for return-to-origin)
+                // We check if any neighbor is effectively the target (distance ~ 0).
+                for (Direction16 dir : Direction16.values()) {
+                    LngLat nextPos = GeometryService.stepFrom(current.getXy(), dir);
+                    // Check if nextPos is extremely close to target (accounting for float precision)
+                    if (GeometryService.distance(nextPos, target) < 1e-12) {
+                        // Check if this final step crosses restricted area
+                        if (!moveCrossesRestrictedArea(current.getXy(), nextPos)) {
+                            Node finalNode = new Node(nextPos, current, target);
+                            List<Node> path = reconstructPath(finalNode);
+                            logger.debug("A* SUCCESS (Exact): {}ms, {} iterations, {} steps",
+                                    System.currentTimeMillis() - startTime, iterations, path.size());
+                            return path;
+                        }
+                    }
+                }
+
+                // If no exact match found, we stop here (fuzzy match for off-grid deliveries)
                 List<Node> path = reconstructPath(current);
-                logger.debug("A* SUCCESS: {}ms, {} iterations, {} steps",
+                logger.debug("A* SUCCESS (Fuzzy): {}ms, {} iterations, {} steps",
                         System.currentTimeMillis() - startTime, iterations, path.size());
                 return path;
             }

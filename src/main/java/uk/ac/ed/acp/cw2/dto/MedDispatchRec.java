@@ -26,5 +26,6 @@ public record MedDispatchRec(
         @NotNull @Valid
         DispatchRequirements requirements,
 
+        @NotNull
         LngLat delivery
 ) {}
