@@ -271,7 +271,7 @@ class OrderAssignmentTest {
         @Test
         @DisplayName("Request for valid date returns successful response")
         void FR7_3_1_validDateRequest_returnsSuccess() throws Exception {
-            // December 12, 2025 is a Friday
+            // December 12, 2025, is a Friday
             mockMvc.perform(post("/api/v1/calcDeliveryPathAsGeoJson")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(SIMPLE_DELIVERY_REQUEST))

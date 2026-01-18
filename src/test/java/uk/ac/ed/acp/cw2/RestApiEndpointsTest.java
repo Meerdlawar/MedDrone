@@ -179,12 +179,12 @@ class RestApiEndpointsTest {
         }
 
         @Test
-        @DisplayName("Non-JSON content returns appropriate error")
-        void FR8_2_3_nonJsonContent_returnsError() throws Exception {
+        @DisplayName("Sending plain text instead of JSON returns 415 Unsupported Media Type")
+        void testWrongContentType() throws Exception {
             mockMvc.perform(post("/api/v1/calcDeliveryPathAsGeoJson")
-                            .contentType(MediaType.APPLICATION_JSON)
+                            .contentType(MediaType.TEXT_PLAIN) // Tell the server it IS text
                             .content("This is not JSON"))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isUnsupportedMediaType()); // Expect 415
         }
     }
 
