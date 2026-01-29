@@ -255,7 +255,7 @@ class GeometryCalculationsTest {
             assertTrue(isInside);
         }
     }
-
+    /// //
     // =========================================================================
     // FR3.6: Check point-in-polygon correctly identifies a point outside 
     //        a no-fly zone
